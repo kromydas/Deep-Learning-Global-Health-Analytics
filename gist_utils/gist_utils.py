@@ -182,8 +182,8 @@ def sum_rasters(input_files, output_file, debug=False):
     Sum a list of raster files using gdal_calc.py and save the result to a specified output file.
 
     Args:
-    input_files (list of str): List of paths to the input raster files.
-    output_file (str): The path to the output file where the result will be saved.
+        input_files (list of str): List of paths to the input raster files.
+        output_file (str): The path to the output file where the result will be saved.
     """
     # Construct the command for gdal_calc.py
     gdal_calc_command = ["gdal_calc.py"]
@@ -201,7 +201,8 @@ def sum_rasters(input_files, output_file, debug=False):
             print("Warning: More than 26 files detected; only the first 26 will be processed.")
             break
 
-    gdal_calc_command.extend(['--outfile', output_file, '--calc', '+'.join(calc_expr)])
+    # Adding the overwrite option
+    gdal_calc_command.extend(['--outfile', output_file, '--calc', '+'.join(calc_expr), '--overwrite'])
 
     if debug:
         print(f"gdal_calc.py command: {' '.join(gdal_calc_command)}\n")
@@ -216,7 +217,6 @@ def sum_rasters(input_files, output_file, debug=False):
         print(result.stdout)
 
     except subprocess.CalledProcessError as e:
-
         print(f"An error occurred while summing the rasters: {e}")
         if e.stderr:
             print("Error output:")
@@ -473,6 +473,21 @@ def load_raster(file_path, expected_crs, expected_pixel_size=None):
 
     return src, crs_match, pixel_size_match
 
+
+def extract_latitudes_from_raster_utm(raster):
+
+    # Define the transformer to convert UTM to WGS 84 (lat, lon)
+    transformer = Transformer.from_crs(raster.crs, 'EPSG:4326', always_xy=True)
+
+    # Get the bounds of the raster
+    bounds = raster.bounds
+
+    # Transform the coordinates
+    min_lon, min_lat = transformer.transform(bounds.left, bounds.bottom)
+    max_lon, max_lat = transformer.transform(bounds.right, bounds.top)
+
+    return max_lat, min_lat
+
 def find_points_within_raster_zone(raster, points, debug=False):
     """
     Filters a list of points, returning those within the raster's UTM zone boundaries.
@@ -493,11 +508,7 @@ def find_points_within_raster_zone(raster, points, debug=False):
     epsg_code = f"EPSG:{raster.crs.to_epsg()}"
     lon_west, lon_east = utm_zone_longitude_bounds(epsg_code)
 
-    #-----------------------------------------------------------------------------------------------------------
-    # *** Latitude is HARD-CODED for now until a method is implemented for programmatically obtaining this data
-    #-----------------------------------------------------------------------------------------------------------
-    lat_north = 37.
-    lat_south = 24.
+    lat_north, lat_south = extract_latitudes_from_raster_utm(raster)
 
     ul_x, ul_y = latlon_to_utm(lat_north, lon_west, dst_crs=epsg_code)
     ur_x, ur_y = latlon_to_utm(lat_north, lon_east, dst_crs=epsg_code)
