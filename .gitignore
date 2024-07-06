@@ -164,3 +164,13 @@ GIS-Image-Stack-Processing/gist_utils/.DS_Store
 .DS_Store
 GIS-Image-Stack-Processing/.DS_Store
 GIS-Image-Stack-Processing/gist_utils/.DS_Store
+GIS-Image-Stack-Processing/AOI/*
+!GIS-Image-Stack-Processing/AOI/.gitkeep
+GIS-Image-Stack-Processing/DHS/*
+!GIS-Image-Stack-Processing/DHS/.gitkeep
+GIS-Image-Stack-Processing/Nightlights/*
+!GIS-Image-Stack-Processing/Nightlights/.gitkeep
+GIS-Image-Stack-Processing/Population/*
+!GIS-Image-Stack-Processing/Population/.gitkeep
+GIS-Image-Stack-Processing/Rainfall/*
+!GIS-Image-Stack-Processing/Rainfall/.gitkeep
