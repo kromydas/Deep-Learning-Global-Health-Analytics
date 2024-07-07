@@ -8,7 +8,7 @@ aoi_configurations = {
         'valid_zones': ['38N'],
         'lat_north': 42.0,
         'lat_south': 38.0,
-        'shapefile': './GIS-Image-Stack-Processing/DHS/AM_2015-16_DHS_05072024_1510_211908/AMGE71FL/AMGE71FL.shp'
+        'shapefile': 'DHS/AM_2015-16_DHS_05072024_1510_211908/AMGE71FL/AMGE71FL.shp'
     },
 
     'TD': {
@@ -16,7 +16,7 @@ aoi_configurations = {
         'valid_zones': ['33N', '34N'],
         'lat_north': 24.0,
         'lat_south': 7.0,
-        'shapefile': './GIS-Image-Stack-Processing/DHS/TD_2014-15_DHS_05072024_1511_211908/TDGE71FL/TDGE71FL.shp'
+        'shapefile': 'DHS/TD_2014-15_DHS_05072024_1511_211908/TDGE71FL/TDGE71FL.shp'
     },
 
     'JO': {
@@ -24,7 +24,7 @@ aoi_configurations = {
         'valid_zones': ['29N', '30N'],
         'lat_north': 33.0,
         'lat_south': 29.0,
-        'shapefile': './GIS-Image-Stack-Processing/DHS/JO_2017-18_DHS_05072024_1514_211908/JOGE71FL/JOGE71FL.shp'
+        'shapefile': 'DHS/JO_2017-18_DHS_05072024_1514_211908/JOGE71FL/JOGE71FL.shp'
     },
 
     'ML': {
@@ -32,7 +32,7 @@ aoi_configurations = {
         'valid_zones': ['29N', '30N', '31N'],
         'lat_north': 19.0,
         'lat_south': 10.0,
-        'shapefile': './GIS-Image-Stack-Processing/DHS/ML_2018_DHS_05072024_1516_211908/MLGE7AFL/MLGE7AFL.shp'
+        'shapefile': 'DHS/ML_2018_DHS_05072024_1516_211908/MLGE7AFL/MLGE7AFL.shp'
     },
 
     'MA': {
@@ -40,7 +40,7 @@ aoi_configurations = {
         'valid_zones': ['28N', '29N', '30N'],
         'lat_north': 36.0,
         'lat_south': 26.0,
-        'shapefile': './GIS-Image-Stack-Processing/DHS/MA_2003-04_DHS_05072024_1622_211908/MAGE43FL/MAGE43FL.shp'
+        'shapefile': 'DHS/MA_2003-04_DHS_05072024_1622_211908/MAGE43FL/MAGE43FL.shp'
     },
 
     'MR': {
@@ -48,7 +48,7 @@ aoi_configurations = {
         'valid_zones': ['28N', '29N', '30N'],
         'lat_north': 26.0,
         'lat_south': 14.0,
-        'shapefile': './GIS-Image-Stack-Processing/DHS/MR_2019-21_DHS_05072024_1516_211908/MRGE71FL/MRGE71FL.shp'
+        'shapefile': 'DHS/MR_2019-21_DHS_05072024_1516_211908/MRGE71FL/MRGE71FL.shp'
     },
 
     'NI': {
@@ -56,7 +56,7 @@ aoi_configurations = {
         'valid_zones': ['31N', '32N', '33N'],
         'lat_north': 19.0,
         'lat_south': 11.0,
-        'shapefile': './GIS-Image-Stack-Processing/DHS/NI_2012_DHS_05072024_1623_211908/NIGE61FL/NIGE61FL.shp'
+        'shapefile': 'DHS/NI_2012_DHS_05072024_1623_211908/NIGE61FL/NIGE61FL.shp'
     },
 
     'PK': {
@@ -64,7 +64,7 @@ aoi_configurations = {
         'valid_zones': ['41N', '42N', '43N'],
         'lat_north': 37.0,
         'lat_south': 24.0,
-        'shapefile': './GIS-Image-Stack-Processing/DHS/PK_2017-18_DHS_05072024_2158_211908/PKGE71FL/PKGE71FL.shp'
+        'shapefile': 'DHS/PK_2017-18_DHS_05072024_2158_211908/PKGE71FL/PKGE71FL.shp'
     },
 
     'SN': {
@@ -72,6 +72,6 @@ aoi_configurations = {
         'valid_zones': ['28N', '29N'],
         'lat_north': 17.0,
         'lat_south': 12.0,
-        'shapefile': './GIS-Image-Stack-Processing/DHS/SN_2019_CONTINUOUSDHS_05072024_1625_211908/SNGE8BFL/SNGE8BFL.shp'
+        'shapefile': 'DHS/SN_2019_CONTINUOUSDHS_05072024_1625_211908/SNGE8BFL/SNGE8BFL.shp'
     }
 }
