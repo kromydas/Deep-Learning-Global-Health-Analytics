@@ -19,9 +19,17 @@ aoi_configurations = {
         'shapefile': 'DHS/TD_2014-15_DHS_05072024_1511_211908/TDGE71FL/TDGE71FL.shp'
     },
 
+    'IN': {
+        'countrty': 'India',
+        'valid_zones': ['42N', '43N', '44N', '45N', '46N', '47N'],
+        'lat_north': 35.0,
+        'lat_south': 6.0,
+        'shapefile': 'DHS/IN_2019-21/IAGE7AFL/IAGE7AFL.shp'
+    },
+
     'JO': {
         'countrty': 'Jordan',
-        'valid_zones': ['29N', '30N'],
+        'valid_zones': ['36N', '37N'],
         'lat_north': 33.0,
         'lat_south': 29.0,
         'shapefile': 'DHS/JO_2017-18_DHS_05072024_1514_211908/JOGE71FL/JOGE71FL.shp'
@@ -41,6 +49,14 @@ aoi_configurations = {
         'lat_north': 36.0,
         'lat_south': 26.0,
         'shapefile': 'DHS/MA_2003-04_DHS_05072024_1622_211908/MAGE43FL/MAGE43FL.shp'
+    },
+
+    'MB': {
+        'countrty': 'Moldova',
+        'valid_zones': ['35N'],
+        'lat_north': 49.0,
+        'lat_south': 45.0,
+        'shapefile': 'DHS/MB_2005_DHS_05072024_1518_211908/MBGE52FL/MBGE52FL.shp'
     },
 
     'MR': {
@@ -72,6 +88,6 @@ aoi_configurations = {
         'valid_zones': ['28N', '29N'],
         'lat_north': 17.0,
         'lat_south': 12.0,
-        'shapefile': 'DHS/SN_2019_CONTINUOUSDHS_05072024_1625_211908/SNGE8BFL/SNGE8BFL.shp'
+        'shapefile': 'DHS/SN_2023_CONTINUOUSDHS_07122024_423_211908/SNGE8RFL/SNGE8RFL.shp'
     }
 }
