@@ -344,6 +344,64 @@ def average_raster(input_file, output_file, divisor=365, nodata_value=-9999, deb
     except Exception as e:
         print(f"An unexpected error occurred: {e}")
 
+
+def average_rasters(input_files, output_file, nodata_value=-9999, debug=False):
+    """
+    Average multiple raster files by computing the average of each pixel.
+    This version excludes NoData values from the calculation.
+
+    Args:
+        input_files (list of str): Paths to the input raster files.
+        output_file (str): Path to the output file where the result will be saved.
+        nodata_value (int or float): The NoData value to exclude from calculations.
+    """
+
+    # Check if the output file exists and delete it if it does
+    if os.path.exists(output_file):
+        if debug:
+            print(f"Output file {output_file} exists and will be overwritten.")
+        os.remove(output_file)
+
+    # Prepare the input files for the gdal_calc.py command
+    input_string = " + ".join([f"({chr(65 + i)}!={nodata_value})*{chr(65 + i)}" for i in range(len(input_files))])
+    divisor = len(input_files)
+    calc_string = f"({input_string})/{divisor}"
+
+    # Construct the command for gdal_calc.py
+    gdal_calc_command = [
+        "gdal_calc.py",
+        '--overwrite',
+        '--NoDataValue', str(nodata_value),
+        '--outfile', output_file
+    ]
+
+    # Add input files to the command
+    for i, file in enumerate(input_files):
+        gdal_calc_command.extend([f'-{chr(65 + i)}', file])
+
+    # Add the calculation string to the command
+    gdal_calc_command.extend(['--calc', calc_string])
+
+    if debug:
+        print(f"gdal_calc.py command: {' '.join(gdal_calc_command)}\n")
+
+    try:
+        # Run the command, capture output and errors, ensure it handles errors via check=True
+        result = subprocess.run(gdal_calc_command, check=True, capture_output=True, text=True)
+        print(f"Average operation successfully saved to: {output_file}")
+        if debug:
+            print("Output from command:")
+            print(result.stdout)
+
+    except subprocess.CalledProcessError as e:
+        print(f"An error occurred while averaging the rasters: {e}")
+        if e.stderr:
+            print("Error output:")
+            print(e.stderr)
+
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}")
+
 def utm_zone_longitude_bounds(epsg_code):
 
     # Extract the UTM zone number and hemisphere from the input code
@@ -1063,53 +1121,219 @@ def rasterio_copy_or_replace_nodata(input_tif, output_tif, dst_nodata, src_nodat
             with rasterio.open(output_tif, 'w', **profile) as dst:
                 dst.write(data, 1)
 
+# def load_and_plot_geotiffs(file_path, plot_data=True, cmap='gray', precision=np.float32, plot_geo_coords=False,
+#                               bad_value=-9999.9, clip_percentile=0):
+#     files = glob(file_path)
+#     files.sort()  # Ensure files are processed in a consistent order
+#
+#     stats_df = pd.DataFrame(columns=["File", "Min", "Max", "Mean", "Median", "NoData Count", "Bad Value Count", "NoData Percent", "Bad Value Percent"])
+#
+#     for file in files:
+#
+#         base_name, extension = os.path.splitext(os.path.basename(file))
+#
+#         with rasterio.open(file) as src:
+#             data = src.read(1).astype(precision)
+#             no_data = src.nodata
+#             print(f"NoData value for {file}: {no_data}")  # Print NoData value set in the file
+#
+#             mask_no_data = data == no_data if no_data is not None else np.zeros_like(data, dtype=bool)
+#             # mask_bad_value = data == bad_value
+#             mask_bad_value = data <= bad_value
+#
+#             valid_data = data[~mask_no_data & ~mask_bad_value]
+#
+#             no_data_count = np.sum(mask_no_data)
+#             bad_value_count = np.sum(mask_bad_value)
+#             total_pixels = data.size
+#             no_data_percent = (no_data_count / total_pixels) * 100
+#             bad_value_percent = (bad_value_count / total_pixels) * 100
+#
+#             if clip_percentile > 0:
+#                 min_val = np.nanpercentile(valid_data, clip_percentile) if np.isfinite(
+#                     valid_data).any() else 'No valid data'
+#                 max_val = np.nanpercentile(valid_data, 100 - clip_percentile) if np.isfinite(
+#                     valid_data).any() else 'No valid data'
+#             else:
+#                 min_val = np.nanmin(valid_data) if np.isfinite(valid_data).any() else 'No valid data'
+#                 max_val = np.nanmax(valid_data) if np.isfinite(valid_data).any() else 'No valid data'
+#
+#             # min_val = np.min(valid_data) if valid_data.size > 0 else 'No valid data'
+#             # max_val = np.max(valid_data) if valid_data.size > 0 else 'No valid data'
+#             mean_val = np.mean(valid_data) if valid_data.size > 0 else 'No valid data'
+#             median_val = np.median(valid_data) if valid_data.size > 0 else 'No valid data'
+#
+#             # Debugging outputs to verify calculations
+#             print(f"File: {file}")
+#             print(f"Min: {min_val}, Max: {max_val}, Mean: {mean_val}, Median: {median_val}")
+#             print(f"NoData Count: {no_data_count}, Bad Value Count: {bad_value_count}")
+#             print(f"NoData Percent: {no_data_percent}, Bad Value Percent: {bad_value_percent}")
+#             print(f"Valid data sample: {valid_data[:10]}")  # Sample of valid data for inspection
+#
+#             stats_df = pd.concat([stats_df, pd.DataFrame([{
+#                 "File": base_name[0:10],
+#                 "Min": min_val,
+#                 "Max": max_val,
+#                 "Mean": mean_val,
+#                 "Median": median_val,
+#                 "NoData Count": no_data_count,
+#                 "Bad Value Count": bad_value_count,
+#                 "NoData Percent": no_data_percent,
+#                 "Bad Value Percent": bad_value_percent
+#             }])], ignore_index=True)
+#
+#             if plot_data:
+#                 # Normalize data
+#                 low_end = 0
+#                 high_end = 1
+#                 norm_data = np.clip((data - min_val) / (max_val - min_val), low_end, high_end)
+#                 norm_data[mask_no_data | mask_bad_value] = np.nan  # Set both NoData and bad values to NaN for visualization
+#
+#                 plt.figure(figsize=(8, 6))
+#                 original_cmap = plt.get_cmap(cmap)
+#                 colors = original_cmap(np.linspace(0, 1, 256))
+#                 colors = np.vstack(([0.5, 0, 0.5, 1], colors))  # Add magenta at the start for bad values
+#                 new_cmap = ListedColormap(colors)
+#
+#                 plt.imshow(norm_data, cmap=new_cmap, norm=Normalize(vmin=low_end, vmax=high_end))
+#                 plt.xlabel('Pixel X coordinate' if not plot_geo_coords else 'Longitude')
+#                 plt.ylabel('Pixel Y coordinate' if not plot_geo_coords else 'Latitude')
+#
+#                 # plt.colorbar()
+#                 plt.show()
+#
+#     return stats_df
+
+# def load_and_plot_geotiffs(file_path, plot_data=True, cmap='gray', precision=np.float32, plot_geo_coords=False,
+#                            bad_value=-9999.9, clip_percentile=0, figsize=(12,6)):
+#     files = glob(file_path)
+#     files.sort()  # Ensure files are processed in a consistent order
+#
+#     stats_df = pd.DataFrame(columns=["File", "Min", "Max", "Mean", "Median", "NoData Count", "Bad Value Count", "NoData Percent", "Bad Value Percent"])
+#
+#     for file in files:
+#         base_name, extension = os.path.splitext(os.path.basename(file))
+#
+#         with rasterio.open(file) as src:
+#             data = src.read(1).astype(precision)
+#             no_data = src.nodata
+#             print(f"NoData value for {file}: {no_data}")  # Print NoData value set in the file
+#
+#             # Create masks for NoData and Bad Values
+#             mask_no_data = data == no_data if no_data is not None else np.zeros_like(data, dtype=bool)
+#             mask_bad_value = data <= bad_value  # Adjusted to catch any value less than or equal to bad_value
+#
+#             # Filter out invalid data
+#             valid_data = data[~mask_no_data & ~mask_bad_value]
+#
+#             # Calculate statistics
+#             no_data_count = np.sum(mask_no_data)
+#             bad_value_count = np.sum(mask_bad_value)
+#             total_pixels = data.size
+#             no_data_percent = (no_data_count / total_pixels) * 100
+#             bad_value_percent = (bad_value_count / total_pixels) * 100
+#
+#             # Calculate min, max, mean, median with or without clipping
+#             if clip_percentile > 0:
+#                 min_val = np.nanpercentile(valid_data, clip_percentile) if np.isfinite(valid_data).any() else 'No valid data'
+#                 max_val = np.nanpercentile(valid_data, 100 - clip_percentile) if np.isfinite(valid_data).any() else 'No valid data'
+#             else:
+#                 min_val = np.nanmin(valid_data) if np.isfinite(valid_data).any() else 'No valid data'
+#                 max_val = np.nanmax(valid_data) if np.isfinite(valid_data).any() else 'No valid data'
+#
+#             mean_val = np.mean(valid_data) if valid_data.size > 0 else 'No valid data'
+#             median_val = np.median(valid_data) if valid_data.size > 0 else 'No valid data'
+#
+#             # Debugging outputs to verify calculations
+#             print(f"File: {file}")
+#             print(f"Min: {min_val}, Max: {max_val}, Mean: {mean_val}, Median: {median_val}")
+#             print(f"NoData Count: {no_data_count}, Bad Value Count: {bad_value_count}")
+#             print(f"NoData Percent: {no_data_percent}, Bad Value Percent: {bad_value_percent}")
+#             print(f"Valid data sample: {valid_data[:10]}")  # Sample of valid data for inspection
+#
+#             # Store the statistics
+#             stats_df = pd.concat([stats_df, pd.DataFrame([{
+#                 "File": base_name[0:10],
+#                 "Min": min_val,
+#                 "Max": max_val,
+#                 "Mean": mean_val,
+#                 "Median": median_val,
+#                 "NoData Count": no_data_count,
+#                 "Bad Value Count": bad_value_count,
+#                 "NoData Percent": no_data_percent,
+#                 "Bad Value Percent": bad_value_percent
+#             }])], ignore_index=True)
+#
+#             if plot_data:
+#                 # Normalize data
+#                 low_end = 0
+#                 high_end = 1
+#                 norm_data = np.clip((data - min_val) / (max_val - min_val), low_end, high_end)
+#                 norm_data[mask_no_data | mask_bad_value] = np.nan  # Set both NoData and bad values to NaN for visualization
+#
+#                 plt.figure(figsize=figsize)
+#
+#                 original_cmap = plt.get_cmap(cmap)
+#                 colors = original_cmap(np.linspace(0, 1, 256))
+#                 colors = np.vstack(([0.5, 0, 0.5, 1], colors))  # Add magenta at the start for bad values
+#                 new_cmap = ListedColormap(colors)
+#
+#                 # Set extent based on the bounds if plot_geo_coords=True
+#                 extent = src.bounds if plot_geo_coords else None
+#
+#                 plt.imshow(norm_data, cmap=new_cmap, norm=Normalize(vmin=low_end, vmax=high_end), extent=extent, aspect='equal')
+#                 plt.xlabel('Pixel X coordinate' if not plot_geo_coords else 'Longitude')
+#                 plt.ylabel('Pixel Y coordinate' if not plot_geo_coords else 'Latitude')
+#
+#                 plt.show()
+#
+#     return stats_df
 
 def load_and_plot_geotiffs(file_path, plot_data=True, cmap='gray', precision=np.float32, plot_geo_coords=False,
-                           bad_value=-9999, clip_percentile=0):
+                           bad_value=-9999.9, clip_percentile=0, figsize=(12,6)):
     files = glob(file_path)
-    files.sort()  # Sort the files to ensure ordered processing
-    stats_df = pd.DataFrame(
-        columns=["File", "Min", "Max", "Mean", "Median", "NoData Count", "Bad Value Count", "NoData Percent",
-                 "Bad Value Percent"])
+    files.sort()  # Ensure files are processed in a consistent order
+
+    stats_df = pd.DataFrame(columns=["File", "Min", "Max", "Mean", "Median", "NoData Count", "Bad Value Count", "NoData Percent", "Bad Value Percent"])
 
     for file in files:
         base_name, extension = os.path.splitext(os.path.basename(file))
 
         with rasterio.open(file) as src:
-            # Read the first band of the raster data from the file
             data = src.read(1).astype(precision)
-            # Retrieve the NoData value from the raster's metadata
             no_data = src.nodata
             print(f"NoData value for {file}: {no_data}")  # Print NoData value set in the file
 
-            # Create 2D boolean masks
-            mask_no_data = data == no_data  # Mask for NoData pixels
-            mask_bad_value = data == bad_value  # Mask for bad value pixels
+            # Create masks for NoData and Bad Values
+            mask_no_data = data == no_data if no_data is not None else np.zeros_like(data, dtype=bool)
+            mask_bad_value = data <= bad_value  # Adjusted to catch any value less than or equal to bad_value
 
-            # Create a 2D array of valid data where invalid values are set to np.nan
-            valid_data = np.where((~mask_no_data) & (~mask_bad_value), data, np.nan)
+            # Filter out invalid data
+            valid_data = data[~mask_no_data & ~mask_bad_value]
 
-            # Compute statistics from valid data, ignoring NaN values
+            # Calculate statistics
             no_data_count = np.sum(mask_no_data)
             bad_value_count = np.sum(mask_bad_value)
             total_pixels = data.size
             no_data_percent = (no_data_count / total_pixels) * 100
             bad_value_percent = (bad_value_count / total_pixels) * 100
 
-            if clip_percentile > 0:
-                min_val = np.nanpercentile(valid_data, clip_percentile) if np.isfinite(
-                    valid_data).any() else 'No valid data'
-                max_val = np.nanpercentile(valid_data, 100 - clip_percentile) if np.isfinite(
-                    valid_data).any() else 'No valid data'
+            if valid_data.size > 0 and np.isfinite(valid_data).any():
+                if clip_percentile > 0:
+                    min_val = np.nanpercentile(valid_data, clip_percentile)
+                    max_val = np.nanpercentile(valid_data, 100 - clip_percentile)
+                else:
+                    min_val = np.nanmin(valid_data)
+                    max_val = np.nanmax(valid_data)
+
+                mean_val = np.nanmean(valid_data)
+                median_val = np.nanmedian(valid_data)
             else:
-                min_val = np.nanmin(valid_data) if np.isfinite(valid_data).any() else 'No valid data'
-                max_val = np.nanmax(valid_data) if np.isfinite(valid_data).any() else 'No valid data'
+                # Handle cases where valid_data is empty or all-NA
+                min_val = max_val = mean_val = median_val = 'No valid data'
 
-            mean_val = np.nanmean(valid_data) if np.isfinite(valid_data).any() else 'No valid data'
-            median_val = np.nanmedian(valid_data) if np.isfinite(valid_data).any() else 'No valid data'
-
-            # Append the results to the DataFrame
-            stats_df = pd.concat([stats_df, pd.DataFrame([{
+            # Prepare a new row for the DataFrame
+            new_row = {
                 "File": base_name[0:10],
                 "Min": min_val,
                 "Max": max_val,
@@ -1119,33 +1343,38 @@ def load_and_plot_geotiffs(file_path, plot_data=True, cmap='gray', precision=np.
                 "Bad Value Count": bad_value_count,
                 "NoData Percent": no_data_percent,
                 "Bad Value Percent": bad_value_percent
-            }])], ignore_index=True)
+            }
+
+            # Only concatenate if the new row is not empty or all-NA
+            if any(pd.notna(val) for val in new_row.values()):
+                stats_df = pd.concat([stats_df, pd.DataFrame([new_row])], ignore_index=True)
 
             if plot_data:
-                # Normalize the data, ignoring NaN values
-                norm_data = np.clip((valid_data - min_val) / (max_val - min_val), 0, 1)
+                # Normalize data
+                low_end = 0
+                high_end = 1
+                norm_data = np.clip((data - min_val) / (max_val - min_val), low_end, high_end)
+                norm_data[mask_no_data | mask_bad_value] = -1  # Set both NoData and bad values to -1 for visualization
 
-                # Mark bad values distinctly
-                norm_data[mask_bad_value] = -1
+                plt.figure(figsize=figsize)
 
-                plt.figure(figsize=(8, 6))
-                colors = plt.get_cmap(cmap)(np.linspace(0, 1, 256))
-                # Add magenta at the start for bad values (with .5 transparency)
-                colors = np.vstack(([1, 0, 1, .5], colors))
-                new_cmap = ListedColormap(colors)
+                # Modify the colormap to add magenta for values set to -1
+                new_cmap = plt.get_cmap(cmap)
+                new_cmap.set_under('magenta')  # Set color for out-of-range low values (below 0)
 
-                if plot_geo_coords:
-                    plt.imshow(norm_data, cmap=new_cmap, norm=Normalize(vmin=-1, vmax=1), extent=src.bounds)
-                    plt.xlabel('Longitude')
-                    plt.ylabel('Latitude')
-                else:
-                    plt.imshow(norm_data, cmap=new_cmap, norm=Normalize(vmin=-1, vmax=1))
-                    plt.xlabel('Pixel X coordinate')
-                    plt.ylabel('Pixel Y coordinate')
+                extent = src.bounds if plot_geo_coords else None
+
+                plt.imshow(norm_data, cmap=new_cmap, norm=Normalize(vmin=low_end, vmax=high_end), extent=extent, aspect='equal')
+                plt.xlabel('Pixel X coordinate' if not plot_geo_coords else 'Longitude')
+                plt.ylabel('Pixel Y coordinate' if not plot_geo_coords else 'Latitude')
 
                 plt.show()
 
     return stats_df
+
+
+
+
 
 
 
