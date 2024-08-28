@@ -2,22 +2,22 @@ import os
 import shutil
 import subprocess
 import geopandas as gpd
-from osgeo import gdal, ogr, osr
+from osgeo import gdal
 import pyproj
 from pyproj import Transformer
-from pyproj import Proj, transform
+from pyproj import Proj
 from pyproj import CRS
 import rasterio
 from rasterio.windows import Window
 from rasterio.warp import transform_bounds
-from rasterio.warp import calculate_default_transform, reproject, Resampling
+from rasterio.warp import calculate_default_transform, reproject
 from rasterio.enums import Resampling
 from shapely.geometry import Point, Polygon
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from matplotlib.colors import ListedColormap, Normalize
+from matplotlib.colors import Normalize
 from glob import glob
 
 def run_gdalinfo(tif_path):
@@ -560,7 +560,6 @@ def transform_to_CRS(input_tif, output_tif, proj_string, debug=False):
             print(f"Output file {output_tif} exists and will be overwritten.")
         os.remove(output_tif)
 
-
     with rasterio.open(input_tif) as src:
         transform, width, height = calculate_default_transform(
             src.crs, proj_string, src.width, src.height, *src.bounds)
@@ -585,6 +584,40 @@ def transform_to_CRS(input_tif, output_tif, proj_string, debug=False):
 
     if debug:
         print("Transformation complete.")
+
+def transform_folder_to_CRS(input_folder, output_folder, proj_string, debug=False):
+    """
+    Transforms the coordinate reference system (CRS) of all single-channel GeoTIFF files in a folder
+    to the projection specified by proj_string.
+
+    Parameters:
+    - input_folder (str): Path to the folder containing input GeoTIFF files to be transformed.
+    - output_folder (str): Path to the folder where the transformed GeoTIFF files will be saved.
+    - proj_string (str): The projection string (e.g., EPSG code) for the desired output CRS.
+    - debug (bool, optional): If set to True, prints debugging information during the process.
+
+    Returns:
+    None. Outputs transformed GeoTIFF files in the specified output folder.
+    """
+
+    # Create the output folder if it doesn't exist
+    os.makedirs(output_folder, exist_ok=True)
+
+    # Iterate over all files in the input folder
+    for filename in os.listdir(input_folder):
+        if filename.endswith('.tif') and 'Fmask' not in filename:
+            input_tif = os.path.join(input_folder, filename)
+            output_tif = os.path.join(output_folder, filename)
+
+            if debug:
+                print(f"Reprojecting {filename}...")
+
+            # Reproject the GeoTIFF to the specified CRS
+            transform_to_CRS(input_tif, output_tif, proj_string, debug)
+
+    if debug:
+        print("All files have been reprojected.")
+
 
 def latlon_to_utm(lat, lon, src_crs='EPSG:4326', dst_crs='EPSG:32642'):
     """
@@ -620,7 +653,7 @@ def utm_to_latlon(x, y, src_crs='EPSG:32642', dst_crs='EPSG:4326'):
     lon, lat = transformer.transform(x, y)
     return lat, lon
 
-def extract_cluster_info(shapefile_path, cluster_field, lat_field, lon_field):
+def extract_cluster_data(shapefile_path, cluster_field, lat_field, lon_field):
     """
     Extracts cluster IDs and their corresponding GPS coordinates from a shapefile.
 
@@ -631,7 +664,9 @@ def extract_cluster_info(shapefile_path, cluster_field, lat_field, lon_field):
         lon_field (str): The field name for longitude values.
 
     Returns:
-        list of tuples: A list where each tuple contains (cluster_id, latitude, longitude).
+        tuple: A tuple containing:
+            - pd.DataFrame: A DataFrame with the selected columns.
+            - list: A list of erroneous cluster IDs with coordinates at (0, 0).
     """
     # Load the shapefile
     gdf = gpd.read_file(shapefile_path)
@@ -641,12 +676,20 @@ def extract_cluster_info(shapefile_path, cluster_field, lat_field, lon_field):
         raise ValueError("One or more field names do not exist in the shapefile.")
 
     # Extract the necessary information
-    data = gdf[[cluster_field, lat_field, lon_field]]
+    cluster_data = gdf[[cluster_field, lat_field, lon_field]]
 
-    # Convert the dataframe to a list of tuples
-    cluster_info = [tuple(x) for x in data.to_numpy()]
+    # Convert cluster IDs to integers
+    cluster_data[cluster_field] =         cluster_data[cluster_field].astype(float).astype(int)
 
-    return cluster_info
+    # Detect and remove erroneous clusters with coordinates at (0, 0)
+    erroneous_clusters = cluster_data[(cluster_data[lat_field] == 0.0) & (cluster_data[lon_field] == 0.0)]
+    erroneous_cluster_ids = erroneous_clusters[cluster_field].tolist()  # Extract only the cluster IDs
+    if erroneous_cluster_ids:
+        print(f"Erroneous clusters detected and removed: {erroneous_cluster_ids}")
+        cluster_data = cluster_data[(cluster_data[lat_field] != 0.0) | (cluster_data[lon_field] != 0.0)]
+
+    return cluster_data, erroneous_cluster_ids
+
 
 def convert_cluster_coordinates_EPSG(cluster_data, src_crs, dst_crs):
     """
@@ -1120,174 +1163,6 @@ def rasterio_copy_or_replace_nodata(input_tif, output_tif, dst_nodata, src_nodat
 
             with rasterio.open(output_tif, 'w', **profile) as dst:
                 dst.write(data, 1)
-
-# def load_and_plot_geotiffs(file_path, plot_data=True, cmap='gray', precision=np.float32, plot_geo_coords=False,
-#                               bad_value=-9999.9, clip_percentile=0):
-#     files = glob(file_path)
-#     files.sort()  # Ensure files are processed in a consistent order
-#
-#     stats_df = pd.DataFrame(columns=["File", "Min", "Max", "Mean", "Median", "NoData Count", "Bad Value Count", "NoData Percent", "Bad Value Percent"])
-#
-#     for file in files:
-#
-#         base_name, extension = os.path.splitext(os.path.basename(file))
-#
-#         with rasterio.open(file) as src:
-#             data = src.read(1).astype(precision)
-#             no_data = src.nodata
-#             print(f"NoData value for {file}: {no_data}")  # Print NoData value set in the file
-#
-#             mask_no_data = data == no_data if no_data is not None else np.zeros_like(data, dtype=bool)
-#             # mask_bad_value = data == bad_value
-#             mask_bad_value = data <= bad_value
-#
-#             valid_data = data[~mask_no_data & ~mask_bad_value]
-#
-#             no_data_count = np.sum(mask_no_data)
-#             bad_value_count = np.sum(mask_bad_value)
-#             total_pixels = data.size
-#             no_data_percent = (no_data_count / total_pixels) * 100
-#             bad_value_percent = (bad_value_count / total_pixels) * 100
-#
-#             if clip_percentile > 0:
-#                 min_val = np.nanpercentile(valid_data, clip_percentile) if np.isfinite(
-#                     valid_data).any() else 'No valid data'
-#                 max_val = np.nanpercentile(valid_data, 100 - clip_percentile) if np.isfinite(
-#                     valid_data).any() else 'No valid data'
-#             else:
-#                 min_val = np.nanmin(valid_data) if np.isfinite(valid_data).any() else 'No valid data'
-#                 max_val = np.nanmax(valid_data) if np.isfinite(valid_data).any() else 'No valid data'
-#
-#             # min_val = np.min(valid_data) if valid_data.size > 0 else 'No valid data'
-#             # max_val = np.max(valid_data) if valid_data.size > 0 else 'No valid data'
-#             mean_val = np.mean(valid_data) if valid_data.size > 0 else 'No valid data'
-#             median_val = np.median(valid_data) if valid_data.size > 0 else 'No valid data'
-#
-#             # Debugging outputs to verify calculations
-#             print(f"File: {file}")
-#             print(f"Min: {min_val}, Max: {max_val}, Mean: {mean_val}, Median: {median_val}")
-#             print(f"NoData Count: {no_data_count}, Bad Value Count: {bad_value_count}")
-#             print(f"NoData Percent: {no_data_percent}, Bad Value Percent: {bad_value_percent}")
-#             print(f"Valid data sample: {valid_data[:10]}")  # Sample of valid data for inspection
-#
-#             stats_df = pd.concat([stats_df, pd.DataFrame([{
-#                 "File": base_name[0:10],
-#                 "Min": min_val,
-#                 "Max": max_val,
-#                 "Mean": mean_val,
-#                 "Median": median_val,
-#                 "NoData Count": no_data_count,
-#                 "Bad Value Count": bad_value_count,
-#                 "NoData Percent": no_data_percent,
-#                 "Bad Value Percent": bad_value_percent
-#             }])], ignore_index=True)
-#
-#             if plot_data:
-#                 # Normalize data
-#                 low_end = 0
-#                 high_end = 1
-#                 norm_data = np.clip((data - min_val) / (max_val - min_val), low_end, high_end)
-#                 norm_data[mask_no_data | mask_bad_value] = np.nan  # Set both NoData and bad values to NaN for visualization
-#
-#                 plt.figure(figsize=(8, 6))
-#                 original_cmap = plt.get_cmap(cmap)
-#                 colors = original_cmap(np.linspace(0, 1, 256))
-#                 colors = np.vstack(([0.5, 0, 0.5, 1], colors))  # Add magenta at the start for bad values
-#                 new_cmap = ListedColormap(colors)
-#
-#                 plt.imshow(norm_data, cmap=new_cmap, norm=Normalize(vmin=low_end, vmax=high_end))
-#                 plt.xlabel('Pixel X coordinate' if not plot_geo_coords else 'Longitude')
-#                 plt.ylabel('Pixel Y coordinate' if not plot_geo_coords else 'Latitude')
-#
-#                 # plt.colorbar()
-#                 plt.show()
-#
-#     return stats_df
-
-# def load_and_plot_geotiffs(file_path, plot_data=True, cmap='gray', precision=np.float32, plot_geo_coords=False,
-#                            bad_value=-9999.9, clip_percentile=0, figsize=(12,6)):
-#     files = glob(file_path)
-#     files.sort()  # Ensure files are processed in a consistent order
-#
-#     stats_df = pd.DataFrame(columns=["File", "Min", "Max", "Mean", "Median", "NoData Count", "Bad Value Count", "NoData Percent", "Bad Value Percent"])
-#
-#     for file in files:
-#         base_name, extension = os.path.splitext(os.path.basename(file))
-#
-#         with rasterio.open(file) as src:
-#             data = src.read(1).astype(precision)
-#             no_data = src.nodata
-#             print(f"NoData value for {file}: {no_data}")  # Print NoData value set in the file
-#
-#             # Create masks for NoData and Bad Values
-#             mask_no_data = data == no_data if no_data is not None else np.zeros_like(data, dtype=bool)
-#             mask_bad_value = data <= bad_value  # Adjusted to catch any value less than or equal to bad_value
-#
-#             # Filter out invalid data
-#             valid_data = data[~mask_no_data & ~mask_bad_value]
-#
-#             # Calculate statistics
-#             no_data_count = np.sum(mask_no_data)
-#             bad_value_count = np.sum(mask_bad_value)
-#             total_pixels = data.size
-#             no_data_percent = (no_data_count / total_pixels) * 100
-#             bad_value_percent = (bad_value_count / total_pixels) * 100
-#
-#             # Calculate min, max, mean, median with or without clipping
-#             if clip_percentile > 0:
-#                 min_val = np.nanpercentile(valid_data, clip_percentile) if np.isfinite(valid_data).any() else 'No valid data'
-#                 max_val = np.nanpercentile(valid_data, 100 - clip_percentile) if np.isfinite(valid_data).any() else 'No valid data'
-#             else:
-#                 min_val = np.nanmin(valid_data) if np.isfinite(valid_data).any() else 'No valid data'
-#                 max_val = np.nanmax(valid_data) if np.isfinite(valid_data).any() else 'No valid data'
-#
-#             mean_val = np.mean(valid_data) if valid_data.size > 0 else 'No valid data'
-#             median_val = np.median(valid_data) if valid_data.size > 0 else 'No valid data'
-#
-#             # Debugging outputs to verify calculations
-#             print(f"File: {file}")
-#             print(f"Min: {min_val}, Max: {max_val}, Mean: {mean_val}, Median: {median_val}")
-#             print(f"NoData Count: {no_data_count}, Bad Value Count: {bad_value_count}")
-#             print(f"NoData Percent: {no_data_percent}, Bad Value Percent: {bad_value_percent}")
-#             print(f"Valid data sample: {valid_data[:10]}")  # Sample of valid data for inspection
-#
-#             # Store the statistics
-#             stats_df = pd.concat([stats_df, pd.DataFrame([{
-#                 "File": base_name[0:10],
-#                 "Min": min_val,
-#                 "Max": max_val,
-#                 "Mean": mean_val,
-#                 "Median": median_val,
-#                 "NoData Count": no_data_count,
-#                 "Bad Value Count": bad_value_count,
-#                 "NoData Percent": no_data_percent,
-#                 "Bad Value Percent": bad_value_percent
-#             }])], ignore_index=True)
-#
-#             if plot_data:
-#                 # Normalize data
-#                 low_end = 0
-#                 high_end = 1
-#                 norm_data = np.clip((data - min_val) / (max_val - min_val), low_end, high_end)
-#                 norm_data[mask_no_data | mask_bad_value] = np.nan  # Set both NoData and bad values to NaN for visualization
-#
-#                 plt.figure(figsize=figsize)
-#
-#                 original_cmap = plt.get_cmap(cmap)
-#                 colors = original_cmap(np.linspace(0, 1, 256))
-#                 colors = np.vstack(([0.5, 0, 0.5, 1], colors))  # Add magenta at the start for bad values
-#                 new_cmap = ListedColormap(colors)
-#
-#                 # Set extent based on the bounds if plot_geo_coords=True
-#                 extent = src.bounds if plot_geo_coords else None
-#
-#                 plt.imshow(norm_data, cmap=new_cmap, norm=Normalize(vmin=low_end, vmax=high_end), extent=extent, aspect='equal')
-#                 plt.xlabel('Pixel X coordinate' if not plot_geo_coords else 'Longitude')
-#                 plt.ylabel('Pixel Y coordinate' if not plot_geo_coords else 'Latitude')
-#
-#                 plt.show()
-#
-#     return stats_df
 
 def load_and_plot_geotiffs(file_path, plot_data=True, cmap='gray', precision=np.float32, plot_geo_coords=False,
                            bad_value=-9999.9, clip_percentile=0, figsize=(12,6)):

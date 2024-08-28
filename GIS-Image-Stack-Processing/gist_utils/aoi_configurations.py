@@ -25,7 +25,10 @@ aoi_configurations = {
         'lon_east': 24.00,
         'crs_lat': 14.0,
         'crs_lon': 18.0,
-        'shapefile': 'DHS/TD_2014-15_DHS_05072024_1511_211908/TDGE71FL/TDGE71FL.shp'
+        'shapefile': 'DHS/TD_2014-15_DHS_05072024_1511_211908/TDGE71FL/TDGE71FL.shp',
+        'recode_hr': 'DHS/TD_2014-15_DHS_05072024_1511_211908/TDHR71SV/TDHR71FL.SAV',
+        'recode_kr': 'DHS/TD_2014-15_DHS_05072024_1511_211908/TDKR71SV/TDKR71FL.SAV',
+        'recode_br': 'DHS/TD_2014-15_DHS_05072024_1511_211908/TDBR71SV/TDBR71FL.SAV'
     },
 
     'IN': {
@@ -121,7 +124,10 @@ aoi_configurations = {
         'lon_east': 77.84,
         'crs_lat': 30.0,
         'crs_lon': 69.0,
-        'shapefile': 'DHS/PK_2017-18_DHS_05072024_2158_211908/PKGE71FL/PKGE71FL.shp'
+        'shapefile': 'DHS/PK_2017-18_DHS_05072024_2158_211908/PKGE71FL/PKGE71FL.shp',
+        'recode_hr': 'DHS/PK_2017-18_DHS_05072024_2158_211908/PKHR71SV/PKHR71FL.SAV',
+        'recode_kr': 'DHS/PK_2017-18_DHS_05072024_2158_211908/PKKR71SV/PKKR71FL.SAV',
+        'recode_br': 'DHS/PK_2017-18_DHS_05072024_2158_211908/PKBR71SV/PKBR71FL.SAV'
     },
 
     'SN': {
