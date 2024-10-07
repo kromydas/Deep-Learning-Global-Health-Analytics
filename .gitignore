@@ -170,7 +170,15 @@ GIS-Image-Stack-Processing/DHS/*
 !GIS-Image-Stack-Processing/DHS/.gitkeep
 GIS-Image-Stack-Processing/Nightlights/*
 !GIS-Image-Stack-Processing/Nightlights/.gitkeep
+!GIS-Image-Stack-Processing/Nightlights/output/
+!GIS-Image-Stack-Processing/Nightlights/output/.gitkeep
 GIS-Image-Stack-Processing/Population/*
 !GIS-Image-Stack-Processing/Population/.gitkeep
+!GIS-Image-Stack-Processing/Population/output/
+!GIS-Image-Stack-Processing/Population/output/.gitkeep
 GIS-Image-Stack-Processing/Rainfall/*
 !GIS-Image-Stack-Processing/Rainfall/.gitkeep
+!GIS-Image-Stack-Processing/Rainfall/GPM_2001-2022/
+!GIS-Image-Stack-Processing/Rainfall/GPM_2001-2022/.gitkeep
+!GIS-Image-Stack-Processing/Rainfall/output/
+!GIS-Image-Stack-Processing/Rainfall/output/.gitkeep
