@@ -83,9 +83,9 @@ aoi_configurations = {
         'crs_lat': 21.0,
         'crs_lon': -11.0,
         'shapefile': 'DHS/MR_2019-21_DHS/MRGE71FL/MRGE71FL.shp',
-        'recode_hr': 'DHS/MR_2019-21_DHS_05072024_1516_211908/MRHR71SV/MRHR71FL.SAV',
-        'recode_kr': 'DHS/MR_2019-21_DHS_05072024_1516_211908/MRKR71SV/MRKR71FL.SAV',
-        'recode_br': 'DHS/MR_2019-21_DHS_05072024_1516_211908/MRBR71SV/MRBR71FL.SAV'
+        'recode_hr': 'DHS/MR_2019-21_DHS/MRHR71SV/MRHR71FL.SAV',
+        'recode_kr': 'DHS/MR_2019-21_DHS/MRKR71SV/MRKR71FL.SAV',
+        'recode_br': 'DHS/MR_2019-21_DHS/MRBR71SV/MRBR71FL.SAV'
     },
 
     'MB': {
