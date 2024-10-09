@@ -11,7 +11,40 @@ from torchvision.models import resnet18
 from torchvision.models.resnet import ResNet18_Weights
 
 def get_resnet_18(output_features=1, extraction_layer=None, fine_tune_layers=0, dropout_rate=0.5, features_list=None):
+    """
+        Instantiates a ResNet-18 model for regression tasks, optionally fine-tuning specific layers and extracting features.
 
+        Parameters:
+        -----------
+        output_features : int, optional (default=1)
+            The number of output features for the final fully connected layer, typically used for regression tasks.
+        extraction_layer : str, optional
+            The layer from which features will be extracted. It can be a high-level layer (e.g., 'layer3', 'layer4') or a specific sub-layer.
+        fine_tune_layers : int, optional (default=0)
+            Number of high-level layers to fine-tune starting from the deepest. For example, setting `fine_tune_layers=2` will fine-tune 'layer4' and 'layer3'.
+        dropout_rate : float, optional (default=0.5)
+            Dropout rate for the fully connected layer to prevent overfitting.
+        features_list : list, optional
+            A list to store the extracted features. If None, an empty list will be initialized.
+
+        Returns:
+        --------
+        model_res_18 : torch.nn.Module
+            The ResNet-18 model configured for regression, with optional layers set to be fine-tuned.
+        features_list : list
+            A list containing feature maps extracted from the specified extraction layer during forward passes.
+
+        Notes:
+        ------
+        - The model is loaded with ImageNet pre-trained weights (`ResNet18_Weights.IMAGENET1K_V1`).
+        - By default, all layers are frozen except for those specified for fine-tuning and the final fully connected (fc) layer.
+        - If an extraction layer is specified, a hook is set to capture the output of that layer during forward propagation.
+        - Dropout is added before the final fully connected layer to reduce overfitting risk.
+
+        Example:
+        --------
+        model, features = get_resnet_18(output_features=1, extraction_layer='layer4.1.conv2', fine_tune_layers=2, dropout_rate=0.3)
+        """
     # Initialize the features_list if not provided
     if features_list is None:
         features_list = []
@@ -79,14 +112,29 @@ def get_resnet_18(output_features=1, extraction_layer=None, fine_tune_layers=0, 
 
 def random_crop(image, crop_size=(160, 160)):
     """
-    Perform a random crop on the input image.
+    Perform a random crop on the input image tensor.
 
-    Args:
-        image (Tensor): Input image (C x H x W).
-        crop_size (tuple): Size of the cropped region (height, width).
+    Parameters:
+    -----------
+    image : Tensor
+        The input image tensor with dimensions (C x H x W), where C is the number of channels,
+        H is the height, and W is the width.
+    crop_size : tuple, optional (default=(160, 160))
+        The size of the cropped region in the format (height, width).
 
     Returns:
-        Cropped image.
+    --------
+    cropped_image : Tensor
+        The randomly cropped image tensor with dimensions (C x crop_height x crop_width).
+
+    Notes:
+    ------
+    - The function ensures that the crop size is smaller than or equal to the dimensions of the input image.
+    - The top-left corner of the crop is selected randomly to introduce variability.
+
+    Example:
+    --------
+    cropped_img = random_crop(image, crop_size=(100, 100))
     """
     _, h, w = image.shape
     ch, cw  = crop_size
@@ -103,6 +151,32 @@ def random_crop(image, crop_size=(160, 160)):
     return cropped_image
 
 def random_translate(image, max_shift=30):
+    """
+    Apply a random translation to the input image tensor.
+
+    Parameters:
+    -----------
+    image : Tensor
+        The input image tensor with dimensions (C x H x W), where C is the number of channels,
+        H is the height, and W is the width.
+    max_shift : int, optional (default=30)
+        The maximum number of pixels to shift the image in both x and y directions.
+
+    Returns:
+    --------
+    translated_image : Tensor
+        The translated image tensor, maintaining the original dimensions (C x H x W).
+
+    Notes:
+    ------
+    - The function pads the image to accommodate the shift and then crops it back to the original dimensions.
+    - Padding is performed using 'replicate' mode, which replicates the border values to fill the padding region.
+    - The shift values are randomly selected within the range [-max_shift, max_shift] for both x and y directions.
+
+    Example:
+    --------
+    translated_img = random_translate(image, max_shift=20)
+    """
     _, h, w = image.shape
 
     shift_x = random.randint(-max_shift, max_shift)
@@ -136,6 +210,40 @@ def random_translate(image, max_shift=30):
 
 
 class EarlyStopping:
+    """
+    Implements early stopping to terminate training when the validation loss stops improving.
+
+    Parameters:
+    -----------
+    patience : int, optional (default=10)
+        The number of epochs to wait after the last time validation loss improved before stopping the training.
+    min_delta : float, optional (default=0.001)
+        The minimum change in the monitored quantity to qualify as an improvement.
+
+    Attributes:
+    -----------
+    patience : int
+        Number of epochs with no improvement after which training will be stopped.
+    min_delta : float
+        Minimum change in the monitored quantity to qualify as an improvement.
+    counter : int
+        Number of epochs since the last improvement in validation loss.
+    best_loss : float or None
+        The best observed validation loss so far.
+    early_stop : bool
+        Whether early stopping should occur.
+
+    Example:
+    --------
+    early_stopping = EarlyStopping(patience=5, min_delta=0.01)
+    for epoch in range(epochs):
+        # Training code...
+        val_loss = evaluate_validation_loss()
+        early_stopping(val_loss)
+        if early_stopping.early_stop:
+            print("Early stopping triggered.")
+            break
+    """
     def __init__(self, patience=10, min_delta=0.001):
         """
         Args:
@@ -161,7 +269,40 @@ class EarlyStopping:
             self.counter = 0
 
 def extract_features(model, data_loader, features_list, device='cpu'):
+    """
+    Extract features from a model using a data loader and a pre-defined hook function.
 
+    Parameters:
+    -----------
+    model : torch.nn.Module
+        The PyTorch model from which features are to be extracted. The model should already have a hook attached to capture the features.
+    data_loader : DataLoader
+        A PyTorch DataLoader that provides batches of data to the model for feature extraction.
+    features_list : list
+        A list to which the extracted features are appended. This list will be reset at the beginning of each function call.
+    device : str, optional (default='cpu')
+        The device on which the model and data should be processed, either 'cpu' or 'cuda'.
+
+    Returns:
+    --------
+    all_features : numpy.ndarray
+        A NumPy array containing the concatenated features extracted from all batches. Each row corresponds to a feature vector for an input image.
+    cluster_ids : list
+        A list of cluster IDs corresponding to each input image in the dataset.
+    target_values_list : list
+        A list of target values corresponding to each input image in the dataset.
+
+    Notes:
+    ------
+    - The function assumes that the model has a hook function attached, which appends the extracted features to `features_list` during forward passes.
+    - `features_list` is cleared at the beginning of the function to avoid accumulating features across multiple calls.
+    - No gradients are calculated during the feature extraction, ensuring efficient inference.
+
+    Example:
+    --------
+    model, features_list = get_resnet_18(output_features=1, extraction_layer='layer4', fine_tune_layers=2)
+    features, cluster_ids, targets = extract_features(model, data_loader, features_list, device='cuda')
+    """
     # Reset features_list at the beginning of the function
     features_list.clear()  # Reset the list at the start of each call
 
@@ -193,6 +334,34 @@ def extract_features(model, data_loader, features_list, device='cpu'):
 def get_image_path(image_path, cid, data_type):
     """
     Constructs and returns the file path for the given cluster ID and data type.
+
+    Parameters:
+    -----------
+    image_path : str
+        The base directory where the image files are stored.
+    cid : int or float
+        The cluster ID for which the image path is being constructed. The ID is formatted as an integer.
+    data_type : str
+        The type of data to be retrieved (e.g., 'Rainfall', 'Population', etc.).
+
+    Returns:
+    --------
+    str or None
+        The file path to the image corresponding to the given cluster ID and data type if exactly one matching file is found.
+        Returns `None` if no matching file is found.
+
+    Raises:
+    -------
+    ValueError
+        If multiple matching files are found for the given cluster ID and data type, indicating an ambiguity that needs to be resolved.
+
+    Example:
+    --------
+    image_path = get_image_path('/data/images', 23, 'Rainfall')
+    if image_path:
+        print(f"Found image path: {image_path}")
+    else:
+        print("No matching image found.")
     """
     formatted_cid = str(int(cid))
 
@@ -217,8 +386,29 @@ def get_image_path(image_path, cid, data_type):
 
 def add_image_paths_for_row(row, image_path):
     """
-    Attempts to get the file paths for nightlights, population, and rainfall data for a given row (cluster).
-    """
+       Attempts to get the file paths for nightlights, population, and rainfall data for a given row (cluster).
+
+       Parameters:
+       -----------
+       row : pd.Series
+           A Pandas Series representing a row in the DataFrame, where the index of the row is assumed to be the cluster ID (cid).
+       image_path : str
+           The base directory where the image files are stored.
+
+       Returns:
+       --------
+       pd.Series
+           A Pandas Series containing the file paths for nightlights, population, and rainfall data.
+           The paths may be `None` if no matching file is found for the respective data type.
+           The Series contains the following indices: 'nightlights_path', 'population_path', 'rainfall_path'.
+
+       Example:
+       --------
+       # Example usage within a DataFrame apply function
+       df[['nightlights_path', 'population_path', 'rainfall_path']] = df.apply(
+           lambda row: add_image_paths_for_row(row, '/data/images'), axis=1
+       )
+       """
     # Get the index value (Cluster ID)
     cid = row.name
 
@@ -234,9 +424,35 @@ def add_image_paths_for_row(row, image_path):
 
 def add_geospatial_image_paths(geospatial_df, dataset_config, country_code):
     """
-    Adds image paths for each row in the DataFrame based on image paths for each cluster.
-    Ensures robustness by flagging any missing files.
-    """
+     Adds image paths for each row in the DataFrame based on image paths for each cluster.
+     Ensures robustness by flagging any missing files.
+
+     Parameters:
+     -----------
+     geospatial_df : pd.DataFrame
+         A DataFrame containing geospatial data, with each row representing a cluster.
+     dataset_config : object
+         The configuration object containing dataset settings, such as the root directory for AOI data (`AOI_ROOT`).
+     country_code : str
+         The country code used to specify the folder containing the image tiles for the corresponding AOI.
+
+     Returns:
+     --------
+     pd.DataFrame
+         The updated DataFrame with new columns: 'nightlights_path', 'population_path', and 'rainfall_path'.
+         These columns contain the file paths for respective data types, which may be `None` if no matching file is found.
+
+     Example:
+     --------
+     updated_df = add_geospatial_image_paths(geospatial_df, dataset_config, 'PK')
+     if updated_df[['nightlights_path', 'population_path', 'rainfall_path']].isnull().any().any():
+         print("Some rows have missing image paths, further inspection required.")
+
+     Notes:
+     ------
+     - If there are missing paths for any data type, a warning is printed, and those rows are retained for further inspection.
+     - This function is useful for ensuring that all necessary geospatial image data is accounted for, aiding in downstream analysis.
+     """
     # Construct the base image path
     image_path = os.path.join(dataset_config.AOI_ROOT, f'{country_code}/Image_Tiles/')
 
@@ -257,7 +473,31 @@ def add_geospatial_image_paths(geospatial_df, dataset_config, country_code):
 
 
 def compute_raster_statistics(image_path):
+    """
+    Computes the mean and standard deviation of pixel values for a raster image.
 
+    Parameters:
+    -----------
+    image_path : str
+        The file path to the raster image for which the statistics are to be computed.
+
+    Returns:
+    --------
+    tuple
+        A tuple containing the mean and standard deviation of the pixel values in the raster image.
+        - mean_value (float): The mean of the pixel values.
+        - std_value (float): The standard deviation of the pixel values.
+
+    Example:
+    --------
+    mean, std = compute_raster_statistics('path/to/raster_image.tif')
+    print(f"Mean: {mean}, Standard Deviation: {std}")
+
+    Notes:
+    ------
+    - This function assumes the raster image has a single channel.
+    - The mean and standard deviation are computed over all the pixel values of the raster.
+    """
     with rasterio.open(image_path) as src:
         data = src.read(1)  # Assume single channel image
         mean_value = np.mean(data)
@@ -265,7 +505,31 @@ def compute_raster_statistics(image_path):
     return mean_value, std_value
 
 def add_statistics_to_dataframe(df, data_types):
+    """
+    Computes the mean and standard deviation of pixel values for a raster image.
 
+    Parameters:
+    -----------
+    image_path : str
+        The file path to the raster image for which the statistics are to be computed.
+
+    Returns:
+    --------
+    tuple
+        A tuple containing the mean and standard deviation of the pixel values in the raster image.
+        - mean_value (float): The mean of the pixel values.
+        - std_value (float): The standard deviation of the pixel values.
+
+    Example:
+    --------
+    mean, std = compute_raster_statistics('path/to/raster_image.tif')
+    print(f"Mean: {mean}, Standard Deviation: {std}")
+
+    Notes:
+    ------
+    - This function assumes the raster image has a single channel.
+    - The mean and standard deviation are computed over all the pixel values of the raster.
+    """
     for data_type in data_types:
         print(df[f'{data_type.lower()}_path'].head())
         means, stds = [], []
@@ -285,18 +549,37 @@ def add_statistics_to_dataframe(df, data_types):
 
 def assign_cluster_labels_by_matching(geospatial_df, cluster_ids, cluster_labels):
     """
-    Assigns cluster labels by matching the cluster IDs from the loader with the geospatial DataFrame.
-    This version assumes that cluster_id is unique and is the index of geospatial_df.
+    Assigns cluster labels to a geospatial DataFrame by matching cluster IDs with given labels.
 
-    Arguments:
-    - geospatial_df: pandas DataFrame with cluster_id as the index.
-    - cluster_ids: list of cluster IDs from the data loader (list of integers).
-    - cluster_labels: list of cluster labels assigned by the clustering algorithm (same length as cluster_ids).
+    Parameters:
+    -----------
+    geospatial_df : pandas.DataFrame
+        The geospatial DataFrame to which the cluster labels will be assigned.
+    cluster_ids : list or array-like
+        A list of cluster IDs to match with the corresponding labels.
+    cluster_labels : list or array-like
+        A list of cluster labels to be assigned to the respective cluster IDs.
 
     Returns:
-    - geospatial_df: the DataFrame with an added 'cluster_label' column.
-    """
+    --------
+    pandas.DataFrame
+        The updated geospatial DataFrame with a new 'cluster_label' column containing the assigned cluster labels.
 
+    Raises:
+    -------
+    ValueError
+        If the lengths of `cluster_ids` and `cluster_labels` are not the same.
+
+    Notes:
+    ------
+    - If the 'cluster_label' column already exists in the DataFrame, the function will skip the assignment.
+    - If any cluster labels are missing after merging, a warning will be printed indicating the number of missing labels.
+
+    Example:
+    --------
+    updated_df = assign_cluster_labels_by_matching(geospatial_df, cluster_ids, cluster_labels)
+    print(updated_df.head())
+    """
     # Check if 'cluster_label' column already exists in the DataFrame
     if 'cluster_label' in geospatial_df.columns:
         print("'cluster_label' column already exists. Skipping assignment.")
@@ -330,28 +613,41 @@ def assign_cluster_labels_by_matching(geospatial_df, cluster_ids, cluster_labels
 
 def compute_cluster_aggregated_statistics_and_correlations(geospatial_df_copy, cluster_label):
     """
-    Computes and normalizes the aggregated statistics (mean and std) for each geospatial data type
-    for a given cluster, using the 'cluster_label' column to filter the cluster.
-    Also returns the correlations between geospatial data types and survey metrics for the cluster,
-    and the vaccination rates for both cluster and non-cluster points.
+        Computes and normalizes aggregated statistics (mean and standard deviation) for each geospatial data type
+        for a specified cluster using the 'cluster_label' column to filter the cluster. Also calculates correlations
+        between geospatial data types and survey metrics, and returns vaccination rates for both cluster and non-cluster points.
 
-    Arguments:
-    - geospatial_df_copy: pandas DataFrame, containing geospatial data with 'cluster_label' as a column.
-    - cluster_label: int or str, the cluster label to filter by.
+        Parameters:
+        -----------
+        geospatial_df_copy : pandas.DataFrame
+            A DataFrame containing geospatial data, including a 'cluster_label' column to identify clusters.
+        cluster_label : int or str
+            The cluster label used to filter the data and perform computations.
 
-    Returns:
-    - cluster_stats: dict, aggregated and normalized mean and std statistics for the given cluster
-    - non_cluster_stats: dict, aggregated and normalized mean and std statistics for points outside the cluster
-    - cluster_count: int, number of points in the specified cluster
-    - non_cluster_count: int, number of points outside the specified cluster
-    - unnormalized_cluster_means: dict, unnormalized means for display
-    - unnormalized_non_cluster_means: dict, unnormalized means for display
-    - survey_means_cluster: list, mean values for the cluster for survey metrics
-    - correlations: dict, correlations between geospatial data types and survey metrics
-    - cluster_vaccination_rates: list, raw vaccination rates for points in the cluster
-    - non_cluster_vaccination_rates: list, raw vaccination rates for points outside the cluster
-    """
+        Returns:
+        --------
+        cluster_stats : dict
+            A dictionary containing aggregated and normalized mean and standard deviation statistics for the specified cluster.
+        non_cluster_stats : dict
+            A dictionary containing aggregated and normalized mean and standard deviation statistics for points outside the cluster.
+        cluster_count : int
+            The number of points in the specified cluster.
+        non_cluster_count : int
+            The number of points outside the specified cluster.
+        unnormalized_cluster_means : dict
+            A dictionary of unnormalized means for display purposes for the cluster.
+        unnormalized_non_cluster_means : dict
+            A dictionary of unnormalized means for display purposes for the non-cluster.
+        survey_means_cluster : list
+            A list of mean values for the cluster for survey metrics.
+        correlations : dict
+            A dictionary containing Pearson correlations between geospatial data types and survey metrics for the cluster.
+        cluster_vaccination_rates : list
+            A list of raw vaccination rates for points in the cluster.
+        non_cluster_vaccination_rates : list
+            A list of raw vaccination rates for points outside the cluster.
 
+        """
     # Filter out points that belong to the given cluster using the 'cluster_label' column
     cluster_data = geospatial_df_copy[geospatial_df_copy['cluster_label'] == cluster_label].copy()
 
