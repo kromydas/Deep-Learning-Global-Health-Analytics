@@ -22,7 +22,30 @@ from matplotlib.colors import Normalize
 from glob import glob
 
 def run_gdalinfo(tif_path):
+    """
+       Runs the GDAL gdalinfo command on a GeoTIFF file to gather metadata information, including minimum and maximum values.
 
+       Parameters:
+       -----------
+       tif_path : str
+           Path to the GeoTIFF file for which metadata information is to be gathered.
+
+       Returns:
+       --------
+       None
+           This function does not return anything. The metadata information is printed to the console.
+
+       Raises:
+       -------
+       subprocess.CalledProcessError
+           If the gdalinfo command fails, an error message is printed and this exception is raised.
+       Exception
+           If any other error occurs, it will print an error message describing the issue.
+
+       Example:
+       --------
+       run_gdalinfo(tif_path='example_file.tif')
+       """
     # Construct the command string
     gdalinfo_command = ["gdalinfo", "-mm", tif_path]
 
@@ -42,6 +65,51 @@ def run_gdalinfo(tif_path):
         print(f"An unexpected error occurred: {e}")
 
 def gdal_crop(input_tif, output_tif, ulx, uly, lrx, lry, debug=False):
+    """
+      Crops a GeoTIFF file to a specified bounding box using GDAL's gdal_translate command.
+
+      Parameters:
+      -----------
+      input_tif : str
+          Path to the input GeoTIFF file.
+      output_tif : str
+          Path to the output GeoTIFF file where the cropped data will be saved.
+      ulx : float
+          Upper left X coordinate of the cropping window.
+      uly : float
+          Upper left Y coordinate of the cropping window.
+      lrx : float
+          Lower right X coordinate of the cropping window.
+      lry : float
+          Lower right Y coordinate of the cropping window.
+      debug : bool, optional (default=False)
+          If True, prints debugging information, including the input and output paths,
+          as well as the constructed GDAL command.
+
+      Returns:
+      --------
+      None
+          This function does not return anything. The result is saved as the output GeoTIFF file.
+
+      Raises:
+      -------
+      subprocess.CalledProcessError
+          If the gdal_translate command fails, an error message is printed and this exception is raised.
+      Exception
+          If any other error occurs, it will print an error message describing the issue.
+
+      Example:
+      --------
+      gdal_crop(
+          input_tif='input_file.tif',
+          output_tif='output_file.tif',
+          ulx=100.0,
+          uly=200.0,
+          lrx=300.0,
+          lry=100.0,
+          debug=True
+      )
+      """
 
     if debug:
         # Debugging prints to check the file paths
@@ -77,7 +145,44 @@ def gdal_crop(input_tif, output_tif, ulx, uly, lrx, lry, debug=False):
         print(f"An unexpected error occurred: {e}")
 
 def gdal_replace_value(input_tif, output_tif, src_value, dst_value, debug=False):
+    """
+    Replaces specific pixel values in a GeoTIFF file using GDAL's gdal_calc.py utility.
 
+    Parameters:
+    -----------
+    input_tif : str
+        Path to the input GeoTIFF file.
+    output_tif : str
+        Path to the output GeoTIFF file where the modified data will be saved.
+    src_value : int or float
+        The pixel value in the input GeoTIFF that needs to be replaced.
+    dst_value : int or float
+        The new value to replace the src_value in the output GeoTIFF.
+    debug : bool, optional (default=False)
+        If True, prints debugging information, including the constructed GDAL command.
+
+    Returns:
+    --------
+    None
+        This function does not return anything. The modified raster is saved as the output GeoTIFF file.
+
+    Raises:
+    -------
+    subprocess.CalledProcessError
+        If the gdal_calc.py command fails, an error message is printed and this exception is raised.
+    Exception
+        If any other error occurs, it will print an error message describing the issue.
+
+    Example:
+    --------
+    gdal_replace_value(
+        input_tif='input_file.tif',
+        output_tif='output_file.tif',
+        src_value=0,
+        dst_value=255,
+        debug=True
+    )
+    """
     gdal_calc_command = [
         "gdal_calc.py",
         "--calc", f"numpy.where(A=={src_value},{dst_value},A)",
@@ -131,7 +236,38 @@ def gdal_unset_nodata(input_tif, output_tif, debug=False):
         print(f"An unexpected error occurred: {e}")
 
 def gdal_set_nodata(input_tif, output_tif, src_nodata, dst_nodata, debug=False):
+    """
+    Unsets the NoData value in a GeoTIFF file using GDAL's gdalwarp command.
 
+    Parameters:
+    -----------
+    input_tif : str
+        Path to the input GeoTIFF file.
+    output_tif : str
+        Path to the output GeoTIFF file where the updated data will be saved.
+    debug : bool, optional (default=False)
+        If True, prints debugging information, including the constructed GDAL command.
+
+    Returns:
+    --------
+    None
+        This function does not return anything. The modified raster is saved as the output GeoTIFF file.
+
+    Raises:
+    -------
+    subprocess.CalledProcessError
+        If the gdalwarp command fails, an error message is printed and this exception is raised.
+    Exception
+        If any other error occurs, it will print an error message describing the issue.
+
+    Example:
+    --------
+    gdal_unset_nodata(
+        input_tif='input_file.tif',
+        output_tif='output_file.tif',
+        debug=True
+    )
+    """
     if debug:
         print(f"Input TIF: {input_tif}")
         print(f"Final Output TIF: {output_tif}\n")
@@ -179,7 +315,48 @@ def gdal_set_nodata(input_tif, output_tif, src_nodata, dst_nodata, debug=False):
             print(f"Output TIF has been written to: {output_tif}")
 
 def gdal_resample(input_tif, output_tif, resample_alg, x_res, y_res, debug=False):
+    """
+    Resamples a GeoTIFF file to a specified resolution using GDAL's gdalwarp command.
 
+    Parameters:
+    -----------
+    input_tif : str
+        Path to the input GeoTIFF file.
+    output_tif : str
+        Path to the output GeoTIFF file where the resampled data will be saved.
+    resample_alg : str
+        Resampling algorithm to use (e.g., 'near', 'bilinear', 'cubic', etc.).
+    x_res : float
+        Target resolution in the X direction, in units of the coordinate reference system.
+    y_res : float
+        Target resolution in the Y direction, in units of the coordinate reference system.
+    debug : bool, optional (default=False)
+        If True, prints debugging information, including the input and output paths,
+        as well as the constructed GDAL command.
+
+    Returns:
+    --------
+    None
+        This function does not return anything. The result is saved as the output GeoTIFF file.
+
+    Raises:
+    -------
+    subprocess.CalledProcessError
+        If the gdalwarp command fails, an error message is printed and this exception is raised.
+    Exception
+        If any other error occurs, it will print an error message describing the issue.
+
+    Example:
+    --------
+    gdal_resample(
+        input_tif='input_file.tif',
+        output_tif='output_file.tif',
+        resample_alg='bilinear',
+        x_res=100.0,
+        y_res=100.0,
+        debug=True
+    )
+    """
     if debug:
         # Debugging prints to check the file paths
         print(f"Input  TIF: {input_tif}")
@@ -216,15 +393,47 @@ def gdal_resample(input_tif, output_tif, resample_alg, x_res, y_res, debug=False
 
 def sum_rasters(input_files, output_file, nodata_value=-9999, debug=False):
     """
-    Sum a list of raster files using gdal_calc.py and save the result to a specified output file.
-    NoData values are explicitly handled to prevent them from affecting the sum.
+    Sum multiple raster files and save the result to an output file using gdal_calc.py.
+    NoData values are explicitly excluded to prevent them from influencing the result.
 
-    Args:
-        input_files (list of str): List of paths to the input raster files.
-        output_file (str): The path to the output file where the result will be saved.
-        nodata_value (float or int): The NoData value to exclude from calculations.
+    Parameters:
+    -----------
+    input_files : list of str
+        List of paths to the input raster files.
+    output_file : str
+        The path to the output file where the result will be saved.
+    nodata_value : float or int, optional (default=-9999)
+        The NoData value to be excluded from calculations.
+    debug : bool, optional (default=False)
+        If True, prints debugging information, including the constructed GDAL command.
+
+    Returns:
+    --------
+    None
+        This function does not return anything. The summed raster is saved to the specified output file.
+
+    Raises:
+    -------
+    subprocess.CalledProcessError
+        If the gdal_calc.py command fails, an error message is printed and this exception is raised.
+    Exception
+        If any other unexpected error occurs, it prints an error message describing the issue.
+
+    Notes:
+    ------
+    - The function only supports up to 26 input raster files due to the use of alphabetic flags (-A, -B, etc.).
+      If more than 26 files are provided, only the first 26 are processed.
+    - Ensure that gdal_calc.py is available in your system's environment for the function to work.
+
+    Example:
+    --------
+    sum_rasters(
+        input_files=['raster1.tif', 'raster2.tif', 'raster3.tif'],
+        output_file='sum_output.tif',
+        nodata_value=-9999,
+        debug=True
+    )
     """
-    # Construct the command for gdal_calc.py
     gdal_calc_command = ["gdal_calc.py"]
 
     # Generate flags (-A, -B, etc.) and add files to the command
@@ -318,13 +527,48 @@ def average_raster(input_file, output_file, divisor=365, nodata_value=-9999, deb
 
 def average_rasters(input_files, output_file, nodata_value=-9999, debug=False):
     """
-    Average multiple raster files by computing the average of each pixel.
-    This version excludes NoData values from the calculation.
+    Average a raster file by dividing each pixel value by a specified divisor using gdal_calc.py.
+    The NoData values are excluded from the calculation to avoid skewing the result.
 
-    Args:
-        input_files (list of str): Paths to the input raster files.
-        output_file (str): Path to the output file where the result will be saved.
-        nodata_value (int or float): The NoData value to exclude from calculations.
+    Parameters:
+    -----------
+    input_file : str
+        Path to the input raster file.
+    output_file : str
+        Path to the output file where the result will be saved.
+    divisor : int or float, optional (default=365)
+        The value to divide each pixel by to compute the average.
+    nodata_value : int or float, optional (default=-9999)
+        The NoData value to be excluded from calculations.
+    debug : bool, optional (default=False)
+        If True, prints debugging information, including the constructed GDAL command and file overwrite messages.
+
+    Returns:
+    --------
+    None
+        This function does not return anything. The averaged raster is saved to the specified output file.
+
+    Raises:
+    -------
+    subprocess.CalledProcessError
+        If the gdal_calc.py command fails, an error message is printed and this exception is raised.
+    Exception
+        If any other unexpected error occurs, it prints an error message describing the issue.
+
+    Notes:
+    ------
+    - The function will overwrite the output file if it already exists.
+    - Ensure that gdal_calc.py is available in your system's environment for the function to work.
+
+    Example:
+    --------
+    average_raster(
+        input_file='input_raster.tif',
+        output_file='average_output.tif',
+        divisor=365,
+        nodata_value=-9999,
+        debug=True
+    )
     """
 
     # Check if the output file exists and delete it if it does
@@ -373,57 +617,6 @@ def average_rasters(input_files, output_file, nodata_value=-9999, debug=False):
     except Exception as e:
         print(f"An unexpected error occurred: {e}")
 
-
-# def transform_to_mollweide(input_tif, output_tif, debug=False):
-#     """
-#     Transforms the coordinate reference system (CRS) of a GeoTIFF file to Mollweide projection using rasterio.
-#
-#     Parameters:
-#     - input_tif (str): The file path to the input GeoTIFF that needs to be transformed.
-#     - output_tif (str): The file path where the transformed GeoTIFF will be saved. If a file already
-#       exists at this location, it will be overwritten.
-#     - debug (bool, optional): If set to True, prints debugging information during the process.
-#
-#     Returns:
-#     None. Outputs a transformed GeoTIFF file at the specified output path.
-#     """
-#     if debug:
-#         print(f"Input TIF: {input_tif}")
-#         print(f"Output TIF: {output_tif}")
-#
-#     # Check if the output file exists and delete it if it does
-#     if os.path.exists(output_tif):
-#         if debug:
-#             print(f"Output file {output_tif} exists and will be overwritten.")
-#         os.remove(output_tif)
-#
-#     # Mollweide PROJ string
-#     mollweide_proj = '+proj=moll +lon_0=0 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs +axis=neu'
-#
-#     with rasterio.open(input_tif) as src:
-#         transform, width, height = calculate_default_transform(
-#             src.crs, mollweide_proj, src.width, src.height, *src.bounds)
-#         kwargs = src.meta.copy()
-#         kwargs.update({
-#             'crs': mollweide_proj,
-#             'transform': transform,
-#             'width': width,
-#             'height': height
-#         })
-#
-#         with rasterio.open(output_tif, 'w', **kwargs) as dst:
-#             for i in range(1, src.count + 1):
-#                 reproject(
-#                     source=rasterio.band(src, i),
-#                     destination=rasterio.band(dst, i),
-#                     src_transform=src.transform,
-#                     src_crs=src.crs,
-#                     dst_transform=transform,
-#                     dst_crs=mollweide_proj,
-#                     resampling=Resampling.nearest)
-#
-#     if debug:
-#         print("Transformation complete.")
 
 def transform_to_CRS(input_tif, output_tif, proj_string, debug=False):
     """
@@ -474,17 +667,43 @@ def transform_to_CRS(input_tif, output_tif, proj_string, debug=False):
 
 def transform_folder_to_CRS(input_folder, output_folder, proj_string, debug=False):
     """
-    Transforms the coordinate reference system (CRS) of all single-channel GeoTIFF files in a folder
-    to the projection specified by proj_string.
+    Transforms the coordinate reference system (CRS) of a GeoTIFF file to a specified projection using rasterio.
 
     Parameters:
-    - input_folder (str): Path to the folder containing input GeoTIFF files to be transformed.
-    - output_folder (str): Path to the folder where the transformed GeoTIFF files will be saved.
-    - proj_string (str): The projection string (e.g., EPSG code) for the desired output CRS.
-    - debug (bool, optional): If set to True, prints debugging information during the process.
+    -----------
+    input_tif : str
+        Path to the input GeoTIFF file that needs to be reprojected.
+    output_tif : str
+        Path to the output GeoTIFF file where the reprojected data will be saved.
+    proj_string : str
+        The projection string (e.g., EPSG code or PROJ string) for the desired output CRS.
+    debug : bool, optional (default=False)
+        If True, prints debugging information, including the input and output file paths and confirmation of file overwrites.
 
     Returns:
-    None. Outputs transformed GeoTIFF files in the specified output folder.
+    --------
+    None
+        This function does not return anything. The transformed raster is saved to the specified output file.
+
+    Raises:
+    -------
+    Exception
+        If any error occurs during reading, writing, or reprojecting, an error message is printed describing the issue.
+
+    Notes:
+    ------
+    - The function will overwrite the output file if it already exists.
+    - Ensure that rasterio is installed and available in your environment for the function to work properly.
+    - The resampling method used for the transformation is `nearest`, which may be appropriate for categorical data.
+
+    Example:
+    --------
+    transform_to_CRS(
+        input_tif='input_file.tif',
+        output_tif='reprojected_output.tif',
+        proj_string='EPSG:4326',
+        debug=True
+    )
     """
 
     # Create the output folder if it doesn't exist
@@ -508,19 +727,51 @@ def transform_folder_to_CRS(input_folder, output_folder, proj_string, debug=Fals
 
 def extract_cluster_data(shapefile_path, cluster_field, lat_field, lon_field, tolerance=1e-1):
     """
-    Extracts cluster IDs and their corresponding GPS coordinates from a shapefile.
+    Extracts cluster IDs and their corresponding latitude and longitude coordinates from a shapefile.
+    Also identifies and removes clusters with erroneous coordinates near (0, 0) based on a given tolerance.
 
     Parameters:
-        shapefile_path (str): The path to the shapefile.
-        cluster_field (str): The field name for cluster IDs in the shapefile.
-        lat_field (str): The field name for latitude values.
-        lon_field (str): The field name for longitude values.
-        tolerance (float): The tolerance for detecting coordinates close to (0, 0). Default is 1e-6.
+    -----------
+    shapefile_path : str
+        Path to the shapefile containing the cluster data.
+    cluster_field : str
+        The field name in the shapefile that represents the cluster IDs.
+    lat_field : str
+        The field name in the shapefile that contains the latitude values.
+    lon_field : str
+        The field name in the shapefile that contains the longitude values.
+    tolerance : float, optional (default=1e-1)
+        The tolerance value for identifying erroneous coordinates near (0, 0). Clusters within this
+        tolerance range will be flagged as erroneous and excluded from the final output.
 
     Returns:
-        tuple: A tuple containing:
-            - pd.DataFrame: A DataFrame with the selected columns.
-            - list: A list of erroneous cluster IDs with coordinates near (0, 0).
+    --------
+    tuple
+        A tuple containing:
+        - cluster_data : pd.DataFrame
+            A DataFrame containing the valid cluster IDs along with their latitude and longitude coordinates.
+        - erroneous_cluster_ids : list
+            A list of cluster IDs that have been identified as having erroneous coordinates near (0, 0).
+
+    Raises:
+    -------
+    ValueError
+        If one or more of the specified fields do not exist in the shapefile.
+
+    Notes:
+    ------
+    - The function prints the IDs and coordinates of clusters identified as erroneous.
+    - The cluster IDs are converted to integers, so any non-integer values will be cast accordingly.
+
+    Example:
+    --------
+    extract_cluster_data(
+        shapefile_path='clusters.shp',
+        cluster_field='cluster_id',
+        lat_field='latitude',
+        lon_field='longitude',
+        tolerance=0.1
+    )
     """
     # Load the shapefile
     gdf = gpd.read_file(shapefile_path)
@@ -561,24 +812,33 @@ def extract_cluster_data(shapefile_path, cluster_field, lat_field, lon_field, to
 
 def convert_cluster_coordinates(cluster_data, src_crs, dst_crs):
     """
-    Converts a list of cluster coordinates from a source CRS to a destination CRS using either EPSG codes or PROJ strings.
-
-    Each cluster's latitude and longitude are transformed to the specified destination CRS. The
-    function returns a list of tuples, each containing the cluster ID and its transformed coordinates.
+    Converts a list of cluster coordinates from a source CRS to a destination CRS using pyproj.
 
     Parameters:
-    - cluster_data (list of tuples): A list of tuples, where each tuple contains (cluster_id, lat, lon).
-    - src_crs (str): The EPSG code or PROJ string of the source coordinate reference system.
-    - dst_crs (str): The EPSG code or PROJ string of the destination coordinate reference system.
+    -----------
+    cluster_data : list of tuples
+        A list of tuples, where each tuple contains (cluster_id, latitude, longitude).
+    src_crs : str
+        The EPSG code or PROJ string of the source coordinate reference system.
+    dst_crs : str
+        The EPSG code or PROJ string of the destination coordinate reference system.
 
     Returns:
-    list of tuples: A list where each tuple contains (cluster_id, x, y), with 'x' and 'y' being the
-    coordinates in the destination CRS.
+    --------
+    list of tuples
+        A list of tuples, where each tuple contains (cluster_id, x, y), with 'x' and 'y' representing the coordinates in the destination CRS.
+
+    Notes:
+    ------
+    - The function uses pyproj to handle coordinate transformations.
+    - The input cluster IDs are cast to integers in the output, so non-integer IDs will be converted.
+    - Ensure that pyproj is installed and available in your environment for the function to work properly.
 
     Example:
-    >>> cluster_data = [(1, 34.05, -118.25), (2, 40.7128, -74.0060)]
-    >>> convert_cluster_coordinates(cluster_data, 'EPSG:4326', '+proj=moll +lon_0=0 +datum=WGS84')
-    [(1, coordinates...), (2, coordinates...)]
+    --------
+    cluster_data = [(1, 34.05, -118.25), (2, 40.7128, -74.0060)]
+    converted_data = convert_cluster_coordinates(cluster_data, 'EPSG:4326', 'EPSG:3857')
+    print(converted_data)
     """
     # Initialize projection objects
     src_proj = Proj(src_crs)
@@ -589,8 +849,6 @@ def convert_cluster_coordinates(cluster_data, src_crs, dst_crs):
 
     transformed_data = []
     for cluster_id, lat, lon in cluster_data:
-        # Transform coordinates
-        # x, y = transform(src_proj, dst_proj, lon, lat)
         # Transforming the point to projected coordinates using the transformer
         x, y = transformer.transform(lat, lon)
         transformed_data.append((int(cluster_id), x, y))
@@ -598,7 +856,45 @@ def convert_cluster_coordinates(cluster_data, src_crs, dst_crs):
 
 
 def load_raster(file_path, expected_crs, expected_pixel_size=None):
-    
+    """
+    Loads a raster file and checks if its CRS and pixel size match the expected values.
+
+    Parameters:
+    -----------
+    file_path : str
+        Path to the raster file to be loaded.
+    expected_crs : str or dict
+        The expected coordinate reference system (CRS) of the raster, specified as an EPSG code or PROJ string.
+    expected_pixel_size : tuple of (float, float), optional
+        The expected pixel size in the format (width, height). If provided, the function checks if the raster's pixel size matches this value.
+
+    Returns:
+    --------
+    tuple
+        A tuple containing:
+        - src : rasterio.io.DatasetReader
+            The opened raster file as a rasterio dataset object.
+        - crs_match : bool
+            A boolean indicating whether the raster's CRS matches the expected CRS.
+        - pixel_size_match : bool
+            A boolean indicating whether the raster's pixel size matches the expected pixel size.
+            If `expected_pixel_size` is not provided, this defaults to True.
+
+    Notes:
+    ------
+    - Ensure that rasterio is installed and available in your environment for the function to work properly.
+    - The CRS comparison is done using rasterio's `CRS` objects for equivalence checking.
+
+    Example:
+    --------
+    src, crs_match, pixel_size_match = load_raster(
+        file_path='raster.tif',
+        expected_crs='EPSG:4326',
+        expected_pixel_size=(30.0, 30.0)
+    )
+    if crs_match and pixel_size_match:
+        print("The raster matches the expected CRS and pixel size.")
+    """
     src = rasterio.open(file_path)  # Open the raster file
     raster_crs = src.crs
 
@@ -619,18 +915,42 @@ def load_raster(file_path, expected_crs, expected_pixel_size=None):
 
 def find_points_within_raster(raster, points, target_crs, debug=False):
     """
-    Filters a list of points, returning those within the raster's boundaries.
-    All points must be tuples in the format (cluster_id, x, y).
+    Filters a list of points to return those that are within the raster's boundaries, after transforming to a specified CRS.
+    Each point must be in the format (cluster_id, x, y).
 
     Parameters:
-        raster (rasterio.io.DatasetReader): The raster object which provides the bounds.
-        points (list): A list of points in the format (cluster_id, x, y), where x and y are coordinates.
-        target_crs (str): The target coordinate reference system to which points and raster bounds are transformed.
-        debug (bool): If True, prints debug information about the transformation and filtering process.
+    -----------
+    raster : rasterio.io.DatasetReader
+        The raster object which provides the bounds and CRS information.
+    points : list of tuples
+        A list of points, each in the format (cluster_id, x, y), where x and y are coordinates in the source CRS.
+    target_crs : str
+        The target coordinate reference system (CRS) to which the points and raster bounds will be transformed.
+    debug : bool, optional (default=False)
+        If True, prints debugging information about the transformation and filtering process.
 
     Returns:
-        list: A list of dictionaries, each containing a 'point' (Shapely Point object) and 'cluster_id',
-              for points that are within the raster bounds.
+    --------
+    list of dict
+        A list of dictionaries, each containing:
+        - 'point' : shapely.geometry.Point
+            A Shapely Point object representing the point's transformed coordinates.
+        - 'cluster_id' : int
+            The cluster ID of the point.
+        Only points that fall within the raster bounds are returned.
+
+    Notes:
+    ------
+    - The function transforms both raster bounds and point coordinates to the specified target CRS before performing containment checks.
+    - pyproj is used for CRS transformations and Shapely is used for geometric operations.
+    - Ensure that both pyproj and shapely are installed and available in your environment.
+
+    Example:
+    --------
+    points = [(1, 10.0, 50.0), (2, 15.0, 55.0)]
+    points_within = find_points_within_raster(raster, points, target_crs='EPSG:3035', debug=True)
+    for point_data in points_within:
+        print(point_data)
     """
     target_crs = pyproj.CRS(target_crs)  # Define the target CRS from the given string
 
@@ -693,15 +1013,32 @@ def find_points_within_raster(raster, points, target_crs, debug=False):
 
 def find_nearest_vertex_rasterio(raster, x, y):
     """
-    Convert x,y coordinates to the nearest vertex of the pixel
+    Converts the provided x, y coordinates to the nearest vertex of the pixel in the given raster.
 
     Parameters:
-        raster (rasterio.io.DatasetReader): The rasterio dataset object.
-        x (float): X coordinate
-        y (float): Y coordinate
+    -----------
+    raster : rasterio.io.DatasetReader
+        The rasterio dataset object containing the pixel information.
+    x : float
+        The x coordinate in the coordinate reference system of the raster.
+    y : float
+        The y coordinate in the coordinate reference system of the raster.
 
     Returns:
-        tuple: The x,y coordinates of the nearest vertex of a pixel.
+    --------
+    tuple of (float, float)
+        The (x, y) coordinates of the nearest vertex of the pixel containing the given point.
+
+    Notes:
+    ------
+    - The function first determines the pixel containing the input coordinates and then calculates the center of that pixel.
+    - Based on the comparison of the input coordinates with the pixel center, the nearest vertex is computed.
+    - Ensure that rasterio is installed and available in your environment for the function to work properly.
+
+    Example:
+    --------
+    vertex_coords = find_nearest_vertex_rasterio(raster, x=100.5, y=200.5)
+    print(f"Nearest vertex coordinates: {vertex_coords}")
     """
     # Get the pixel coordinates of the center of the pixel that contains the point
     px, py = raster.index(x, y)
@@ -728,6 +1065,54 @@ def find_nearest_vertex_rasterio(raster, x, y):
 
 
 def crop_raster_rasterio(rasterio_dataset, points, filename_prefix, filename_suffix, output_folder, tile_size=224, debug=False):
+    """
+    Crops a raster into tiles centered on given points, using rasterio.
+
+    Parameters:
+    -----------
+    rasterio_dataset : rasterio.io.DatasetReader
+        The rasterio dataset object to be cropped.
+    points : list of dict
+        A list of points, where each point is represented by a dictionary containing:
+        - 'point': shapely.geometry.Point object representing the coordinates.
+        - 'cluster_id': Identifier for the cluster associated with the point.
+    filename_prefix : str
+        Prefix for the generated output filenames.
+    filename_suffix : str
+        Suffix for the generated output filenames.
+    output_folder : str
+        Path to the folder where cropped tiles will be saved.
+    tile_size : int, optional (default=224)
+        The size of the square tile to be cropped, in pixels.
+    debug : bool, optional (default=False)
+        If True, prints debugging information about the transformation and cropping process.
+
+    Returns:
+    --------
+    None
+        This function does not return anything. The cropped tiles are saved in the specified output folder.
+
+    Notes:
+    ------
+    - The function checks if the output folder exists, and creates it if it doesn't.
+    - The cropping is performed using the nearest vertex to the provided point as the center.
+    - The function ensures that the crop window does not exceed the raster's boundaries.
+    - If a valid window cannot be defined (e.g., the point is too close to the boundary), the crop is skipped.
+    - Ensure that rasterio and shapely are installed and available in your environment.
+
+    Example:
+    --------
+    points = [{'point': Point(100.5, 200.5), 'cluster_id': 1}, {'point': Point(150.0, 250.0), 'cluster_id': 2}]
+    crop_raster_rasterio(
+        rasterio_dataset=raster,
+        points=points,
+        filename_prefix='tile',
+        filename_suffix='crop',
+        output_folder='output_tiles',
+        tile_size=224,
+        debug=True
+    )
+    """
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
 
@@ -782,6 +1167,43 @@ def crop_raster_rasterio(rasterio_dataset, points, filename_prefix, filename_suf
     print(f"Crops are saved in {output_folder}")
 
 def rasterio_replace_nodata(input_tif, output_tif, dst_nodata, src_nodata=None, debug=False):
+    """
+    Replaces NoData values in a raster file using rasterio, and saves the updated raster to a new file.
+
+    Parameters:
+    -----------
+    input_tif : str
+        Path to the input GeoTIFF file.
+    output_tif : str
+        Path to the output GeoTIFF file where the modified data will be saved.
+    dst_nodata : int or float
+        The NoData value to be set in the output raster.
+    src_nodata : int or float, optional
+        The NoData value in the input raster to be replaced. If None, the source NoData value will not be explicitly modified.
+    debug : bool, optional (default=False)
+        If True, prints debugging information about the process, including the output path and NoData value settings.
+
+    Returns:
+    --------
+    None
+        This function does not return anything. The modified raster is saved to the specified output file.
+
+    Notes:
+    ------
+    - The function reads the first band of the raster file for simplicity. If the raster has multiple bands, this will need to be adjusted.
+    - The compression is set to 'deflate' with zlevel=9 to reduce output file size.
+    - Ensure that rasterio is installed and available in your environment for the function to work properly.
+
+    Example:
+    --------
+    rasterio_replace_nodata(
+        input_tif='input_file.tif',
+        output_tif='output_file.tif',
+        dst_nodata=-9999,
+        src_nodata=0,
+        debug=True
+    )
+    """
     with rasterio.open(input_tif) as src:
         data = src.read(1)  # Read the first band (assuming a single band for simplicity)
 
@@ -802,6 +1224,63 @@ def rasterio_replace_nodata(input_tif, output_tif, dst_nodata, src_nodata=None, 
 
 def load_and_plot_geotiffs(file_path, plot_data=True, cmap='gray', precision=np.float32, plot_geo_coords=False,
                            bad_value=-9999.9, clip_percentile=0, figsize=(12,6)):
+    """
+    Loads and optionally plots GeoTIFF files from a specified path, while computing and returning statistics for each file.
+
+    Parameters:
+    -----------
+    file_path : str
+        File path or pattern to load GeoTIFF files. Wildcards are supported for loading multiple files.
+    plot_data : bool, optional (default=True)
+        If True, plots the data using matplotlib.
+    cmap : str, optional (default='gray')
+        The colormap to use for plotting.
+    precision : numpy.dtype, optional (default=np.float32)
+        The data type to cast the raster data to.
+    plot_geo_coords : bool, optional (default=False)
+        If True, plots geographic coordinates (latitude and longitude) on the axes. Otherwise, plots pixel coordinates.
+    bad_value : float, optional (default=-9999.9)
+        The value considered as a 'bad' value, which will be excluded from statistics and visualization.
+    clip_percentile : float, optional (default=0)
+        The percentile value for clipping the data for visualization. If 0, no clipping is performed.
+    figsize : tuple of (float, float), optional (default=(12, 6))
+        Size of the figure for plotting.
+
+    Returns:
+    --------
+    pd.DataFrame
+        A DataFrame containing statistics for each loaded GeoTIFF, including:
+        - File: The file name (first 10 characters).
+        - Min: Minimum value of valid data.
+        - Max: Maximum value of valid data.
+        - Mean: Mean value of valid data.
+        - Median: Median value of valid data.
+        - NoData Count: Number of NoData pixels.
+        - Bad Value Count: Number of pixels with bad values.
+        - NoData Percent: Percentage of NoData pixels.
+        - Bad Value Percent: Percentage of pixels with bad values.
+
+    Notes:
+    ------
+    - NoData and bad values are masked during both statistics calculation and plotting.
+    - GeoTIFF files are expected to contain a single band; adjustments may be needed for multi-band files.
+    - The function modifies the colormap to visualize NoData and bad values as magenta for easier identification.
+    - Ensure that rasterio, numpy, pandas, and matplotlib are installed and available in your environment.
+
+    Example:
+    --------
+    stats = load_and_plot_geotiffs(
+        file_path='data/*.tif',
+        plot_data=True,
+        cmap='viridis',
+        precision=np.float32,
+        plot_geo_coords=True,
+        bad_value=-9999.9,
+        clip_percentile=2,
+        figsize=(10, 8)
+    )
+    print(stats)
+    """
     files = glob(file_path)
     files.sort()  # Ensure files are processed in a consistent order
 
