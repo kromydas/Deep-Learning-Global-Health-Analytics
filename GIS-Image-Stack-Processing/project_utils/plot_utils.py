@@ -13,12 +13,9 @@ from itertools import combinations
 
 import pyproj
 from bokeh.plotting import show
-#from bokeh.plotting import figure, show, #output_file, save
 from bokeh.models import ColumnDataSource, HoverTool, LabelSet
 from bokeh.models import LinearColorMapper, ColorBar, ColorMapper
-# from bokeh.models import CheckboxGroup, CustomJS
-from bokeh.io import export_png, export_svg
-# from bokeh.transform import linear_cmap
+from bokeh.io import export_png
 
 from bokeh.plotting import figure
 from bokeh.tile_providers import get_provider, CARTODBPOSITRON #ESRI_IMAGERY
@@ -26,11 +23,36 @@ from skgstat import Variogram
 
 def plot_aoi_distribution(dataset, case, title="AOI Distribution"):
     """
-    Plots a bar chart showing the number of samples per AOI in the dataset.
+    Plots a bar chart showing the number of samples per Area of Interest (AOI) in the dataset.
 
-    Args:
-        dataset (Dataset): An instance of the MultiChannelGeoTiffDataset.
-        title (str): The title of the plot.
+    Parameters:
+    -----------
+    dataset : Dataset
+        An instance of the MultiChannelGeoTiffDataset, which contains information about the samples and associated AOIs.
+    case : str
+        A string identifier for the specific case being plotted, used to save the plot to a file.
+    title : str, optional (default="AOI Distribution")
+        The title of the plot.
+
+    Returns:
+    --------
+    None
+        This function does not return anything. It generates and saves the bar chart as a PNG file.
+
+    Notes:
+    ------
+    - The function uses a Counter to count the number of samples per AOI in the dataset.
+    - The bar chart is saved in the current directory with the filename format "<case>.png".
+    - The plot is displayed after being saved, with a fixed y-axis limit of 1000.
+    - Ensure that matplotlib is installed and available in your environment.
+
+    Example:
+    --------
+    plot_aoi_distribution(
+        dataset=multi_channel_dataset,
+        case='case_1',
+        title='AOI Sample Distribution for Case 1'
+    )
     """
     # Initialize a counter for AOIs
     aoi_counter = Counter()
@@ -72,6 +94,55 @@ def plot_training_curves(metrics,
                          colors=None,
                          out_dir=None,
                          case=None):
+    """
+    Plots training curves for multiple metrics over epochs.
+
+    Parameters:
+    -----------
+    metrics : list of list of float
+        A list of metric values, where each element is a list containing values over epochs.
+    title : str, optional
+        The title of the plot.
+    ylabel : str, optional
+        The label for the y-axis.
+    ylim : tuple of (float, float), optional
+        The limits for the y-axis.
+    metric_names : list of str, optional
+        Names for each metric to be used in the legend.
+    colors : list of str, optional
+        Colors to use for each metric line. Should match the number of metrics.
+    out_dir : str, optional
+        Directory to save the output plot. If not provided, the plot will not be saved.
+    case : str, optional
+        A string identifier used to generate the filename when saving the plot.
+
+    Returns:
+    --------
+    None
+        This function does not return anything. It generates and optionally saves a plot of the training metrics.
+
+    Notes:
+    ------
+    - The x-axis represents epochs, starting from 0 to the number of completed epochs.
+    - The function creates a line plot for each metric in the list of metrics.
+    - If `out_dir` is provided and does not exist, it will be created.
+    - The plot will be saved as a PNG file with the name format "<case>.png" in the specified directory.
+    - Ensure that matplotlib is installed and available in your environment for the function to work properly.
+
+    Example:
+    --------
+    metrics = [[0.8, 0.85, 0.9, 0.92], [0.75, 0.8, 0.85, 0.88]]
+    plot_training_curves(
+        metrics=metrics,
+        title='Training Curves',
+        ylabel='Accuracy',
+        ylim=(0.5, 1.0),
+        metric_names=['Training Accuracy', 'Validation Accuracy'],
+        colors=['blue', 'orange'],
+        out_dir='plots',
+        case='training_case_1'
+    )
+    """
     # Determine the actual number of completed epochs based on the metrics
     actual_epochs = len(metrics[0])  # Assumes all metrics have the same length
 
@@ -119,8 +190,56 @@ def plot_predictions(predictions,
                      add_grid=False,
                      selected_targets=None,
                      plot_hist=False,
-                     title_string=None,
-                     save_path=None):
+                     title_string=None):
+    """
+       Plots scatter plots of predictions vs. actuals for multiple targets, with optional error histograms.
+
+       Parameters:
+       -----------
+       predictions : array-like
+           Predicted values, with shape (num_samples, num_targets).
+       actuals : array-like
+           Actual values, with shape (num_samples, num_targets). Must match the shape of predictions.
+       out_dir : str
+           Directory where the plot will be saved.
+       case : str, optional
+           A string identifier used to generate the filename when saving the plot.
+       add_grid : bool, optional (default=False)
+           If True, adds a grid to each subplot.
+       selected_targets : list of str, optional
+           Names for each target output to be used in the plot titles. If not provided, default names are used.
+       plot_hist : bool, optional (default=False)
+           If True, plots histograms of prediction errors alongside the scatter plots.
+       title_string : str, optional
+           Additional string to be appended to each plot title.
+
+       Returns:
+       --------
+       None
+           This function does not return anything. It generates and optionally saves the plots.
+
+       Notes:
+       ------
+       - The function plots a scatter plot of actual vs. predicted values for each target.
+       - If `plot_hist` is True, it also plots a histogram of the prediction errors for each target.
+       - The output plot is saved as a PNG file in the specified output directory.
+       - Ensure that matplotlib and numpy are installed and available in your environment.
+
+       Example:
+       --------
+       predictions = np.random.rand(100, 3)
+       actuals = np.random.rand(100, 3)
+       plot_predictions(
+           predictions=predictions,
+           actuals=actuals,
+           out_dir='plots',
+           case='experiment_1',
+           add_grid=True,
+           selected_targets=['Target 1', 'Target 2', 'Target 3'],
+           plot_hist=True,
+           title_string='Experiment Results'
+       )
+       """
     predictions = np.array(predictions)
     actuals = np.array(actuals)  # Converted to array
 
@@ -182,7 +301,7 @@ def plot_predictions(predictions,
     file_suffix = ".png"
     file_path = os.path.join(out_dir, f"{case}{file_suffix}") if out_dir else f"{case}{file_suffix}"
 
-    # Save the plot if save_path is provided
+    # Save the plot
     if out_dir:
         plt.savefig(file_path)
         print(f"Plot saved to {file_path}")
@@ -202,8 +321,69 @@ def plot_clusters(projected_features,
                   annotate_points=False,
                   font_size=8,
                   use_distinct_colors=False,
-                  n_clusters=None,
                   save_to_disk=True):
+    """
+        Plots the clusters in projected feature space, using different components of the feature representation.
+
+        Parameters:
+        -----------
+        projected_features : ndarray
+            A 2D array where rows represent samples and columns represent the projected feature dimensions.
+        cluster_ids : list
+            List of cluster identifiers, which are either DHS cluster IDs or labels assigned by a clustering algorithm.
+        cluster_colors : list
+            List of colors to use for each cluster when plotting. Should have enough colors for the distinct clusters.
+        vaccination_rates : list
+            List of vaccination rates for each cluster. Each element is expected to be a numeric value representing the rate.
+        num_components : int, optional (default=2)
+            Number of components to plot. Must be between 2 and the number of columns in `projected_features`.
+        out_dir : str, optional
+            Directory to save the output plots. If not provided, plots will not be saved to disk.
+        case : str, optional
+            A string identifier for the specific case being plotted, used to generate file names for saving.
+        plot_title : str, optional
+            Title of the plot.
+        annotate_points : bool, optional (default=False)
+            If True, annotates each point with its cluster ID.
+        font_size : int, optional (default=8)
+            Font size to use for point annotations, if `annotate_points` is True.
+        use_distinct_colors : bool, optional (default=False)
+            If True, attempts to use distinct colors for each cluster based on `cluster_colors`. If there are more clusters
+            than colors available, falls back to a default color.
+        save_to_disk : bool, optional (default=True)
+            If True, saves the plots to disk in the specified `out_dir`.
+
+        Returns:
+        --------
+        None
+            This function does not return anything. It generates and optionally saves cluster plots for visualization.
+
+        Notes:
+        ------
+        - The function uses Bokeh to create scatter plots for clusters based on the specified components.
+        - Each point represents a cluster, colored according to `cluster_colors`, and optionally annotated with its cluster ID.
+        - If `use_distinct_colors` is True and sufficient colors are provided, each cluster is given a distinct color.
+        - The plot includes a hover tooltip to display the vaccination rate for each cluster.
+        - Plots can be saved to disk if `save_to_disk` is True, using the provided output directory and case identifier.
+        - Ensure that Bokeh and numpy are installed and available in your environment.
+
+        Example:
+        --------
+        plot_clusters(
+            projected_features=np.random.rand(100, 3),
+            cluster_ids=[1, 2, 3, 4, 5] * 20,
+            cluster_colors=['red', 'green', 'blue', 'orange', 'purple'],
+            vaccination_rates=np.random.rand(100),
+            num_components=2,
+            out_dir='plots',
+            case='example_case',
+            plot_title='Cluster Visualization',
+            annotate_points=True,
+            font_size=10,
+            use_distinct_colors=True,
+            save_to_disk=True
+        )
+        """
     n_components = projected_features.shape[1]
 
     if num_components < 2 or num_components > n_components:
@@ -237,10 +417,6 @@ def plot_clusters(projected_features,
         p = figure(title=plot_title, x_axis_label=f'Component {i + 1}', y_axis_label=f'Component {j + 1}', width=800,
                    height=800)
         p.title.text_font_size = '14pt'
-
-        # Add hover tool with vaccination rate
-        #         hover = HoverTool(tooltips=[("Cluster",          "@cluster_id"),
-        #                                     ("Vaccination Rate", "@vaccination_rate")])
 
         hover = HoverTool(tooltips=[("Vaccination Rate", "@vaccination_rate")])
 
@@ -299,25 +475,87 @@ def plot_comparison(country_code,
                     save_to_disk=True,
                     plot_values=False):
     """
-    Plots a bar chart comparing the normalized cluster and non-cluster statistics,
-    with survey metrics means and correlations displayed on the plot. Beneath the bar chart,
-    it also plots a distribution of vaccination rates within the cluster.
+        Plots a bar chart comparing the normalized statistics for a specific cluster against non-cluster statistics,
+        along with the distribution of vaccination rates for both the cluster and non-cluster groups.
 
-    Arguments:
-    - cluster_stats: dict of statistics for the cluster
-    - non_cluster_stats: dict of statistics for the non-cluster
-    - cluster_label: int, the label of the cluster
-    - cluster_count: int, the number of points in the cluster
-    - non_cluster_count: int, the number of points outside the cluster
-    - unnormalized_cluster_means: dict of unnormalized means for the cluster
-    - unnormalized_non_cluster_means: dict of unnormalized means for non-cluster
-    - survey_means_cluster: list, mean values for the cluster for survey metrics
-    - correlations: dict of correlations between geospatial data types and survey metrics
-    - cluster_vaccination_rates: list of vaccination rates for the cluster
-    - non_cluster_vaccination_rates: list of vaccination rates for non-cluster
-    - cluster_color: color for the cluster
-    - save_to_disk: bool, whether to save the plot to disk (default is False)
-    """
+        Parameters:
+        -----------
+        country_code : str
+            The code of the country being analyzed, used in the title of the plot.
+        cluster_stats : dict
+            Dictionary containing statistics for the cluster (e.g., means of certain metrics).
+        non_cluster_stats : dict
+            Dictionary containing statistics for non-cluster data points.
+        cluster_label : int
+            Label or identifier of the cluster being analyzed.
+        cluster_count : int
+            Number of points in the cluster.
+        non_cluster_count : int
+            Number of points outside the cluster.
+        unnormalized_cluster_means : dict
+            Dictionary of unnormalized mean values for the cluster metrics.
+        unnormalized_non_cluster_means : dict
+            Dictionary of unnormalized mean values for the non-cluster metrics.
+        survey_means_cluster : list
+            List of mean values for specific survey metrics for the cluster (e.g., vaccination, access to fresh water).
+        correlations : dict
+            Dictionary containing correlation values between geospatial data types and survey metrics.
+        cluster_vaccination_rates : list
+            List of vaccination rates for points within the cluster.
+        non_cluster_vaccination_rates : list
+            List of vaccination rates for points outside the cluster.
+        cluster_color : str
+            Color used for the cluster bars and vaccination distribution in the plot.
+        stats_normalized : bool, optional (default=True)
+            If True, plots normalized mean values; otherwise, plots raw mean values.
+        out_dir : str, optional
+            Directory where the output plot will be saved. If not provided, the plot will not be saved.
+        case : str, optional
+            A string identifier used to generate the filename when saving the plot.
+        plot_title : str, optional
+            Title of the plot.
+        save_to_disk : bool, optional (default=True)
+            If True, saves the plot to disk in the specified output directory.
+        plot_values : bool, optional (default=False)
+            If True, displays the unnormalized mean values inside the bars of the bar chart.
+
+        Returns:
+        --------
+        None
+            This function does not return anything. It generates and optionally saves a bar chart and histogram plot.
+
+        Notes:
+        ------
+        - The first subplot displays a bar chart comparing the means of the cluster and non-cluster metrics.
+        - The second subplot displays a histogram comparing the vaccination rate distribution between cluster and non-cluster.
+        - The bar chart can include additional text displaying survey metric means for the cluster.
+        - Correlation values for each metric are included in the x-axis labels.
+        - The function uses seaborn for histogram plotting and matplotlib for bar chart plotting.
+
+        Example:
+        --------
+        plot_comparison(
+            country_code='PK',
+            cluster_stats={'nightlights_mean': {'mean': 0.4}, 'rainfall_mean': {'mean': 0.6}},
+            non_cluster_stats={'nightlights_mean': {'mean': 0.3}, 'rainfall_mean': {'mean': 0.5}},
+            cluster_label=1,
+            cluster_count=100,
+            non_cluster_count=200,
+            unnormalized_cluster_means={'nightlights_mean': 0.45, 'rainfall_mean': 0.65},
+            unnormalized_non_cluster_means={'nightlights_mean': 0.35, 'rainfall_mean': 0.55},
+            survey_means_cluster=[0.7, 0.6, 0.8, 0.5, 0.4, 0.3],
+            correlations={'nightlights_mean': {'fraction_dpt3_vaccinated': 0.5}, 'rainfall_mean': {'fraction_dpt3_vaccinated': 0.4}},
+            cluster_vaccination_rates=[0.7, 0.75, 0.72, 0.68],
+            non_cluster_vaccination_rates=[0.6, 0.62, 0.58, 0.65],
+            cluster_color='blue',
+            stats_normalized=True,
+            out_dir='plots',
+            case='pk_cluster_comparison',
+            plot_title='Cluster vs Non-Cluster Statistics for PK',
+            save_to_disk=True,
+            plot_values=True
+        )
+        """
     fig, axs = plt.subplots(2, 1, figsize=(10, 6), gridspec_kw={'height_ratios': [3, 1]})
 
     categories = list(cluster_stats.keys())
@@ -410,9 +648,37 @@ def plot_comparison(country_code,
 
 
 def wgs84_to_mercator(lon, lat):
-    k = 6378137
-    x = lon * (k * np.pi/180.0)
-    y = np.log(np.tan((90 + lat) * np.pi/360.0)) * k
+    """
+    Converts geographic coordinates (longitude, latitude) in WGS84 to Mercator projection coordinates.
+
+    Parameters:
+    -----------
+    lon : float or ndarray
+        Longitude in degrees, can be a single value or an array of values.
+    lat : float or ndarray
+        Latitude in degrees, can be a single value or an array of values.
+
+    Returns:
+    --------
+    tuple
+        A tuple (x, y) representing the Mercator projection coordinates, where:
+        - x is the Easting (in meters)
+        - y is the Northing (in meters)
+
+    Notes:
+    ------
+    - The function uses the spherical Mercator projection formula to convert latitude and longitude to Mercator x, y.
+    - It assumes a spherical Earth with radius 6378137 meters.
+    - The output coordinates are in meters.
+
+    Example:
+    --------
+    lon, lat = -73.9857, 40.7488
+    x, y = wgs84_to_mercator(lon, lat)
+    """
+    re = 6378137
+    x = lon * (re * np.pi/180.0)
+    y = np.log(np.tan((90 + lat) * np.pi/360.0)) * re
     return x, y
 
 
@@ -427,6 +693,67 @@ def create_geospatial_plot(source,
                            symbol_size=10,
                            plot_width=950,
                            save_to_disk=True):
+    """
+        Creates a geospatial plot with Mercator projection using Bokeh, allowing for customizable color specifications,
+        tooltips, and optional color bar.
+
+        Parameters:
+        -----------
+        source : ColumnDataSource
+            A Bokeh ColumnDataSource containing data for the plot, including 'mercator_x' and 'mercator_y' coordinates.
+        tooltips : list of tuples
+            Tooltips to display on hover, defined as a list of tuples with field names and descriptions.
+        color_spec : ColorMapper, dict, or str
+            Specifies the color for points in the plot. Can be:
+            - A ColorMapper for color scaling.
+            - A dictionary containing a color field and transform.
+            - A simple color string (e.g., "navy").
+        out_dir : str, optional
+            Directory where the output plot image will be saved. If not provided, plot will not be saved.
+        case : str, optional
+            A string identifier used to generate the filename when saving the plot.
+        plot_title : str, optional
+            Title for the plot.
+        color_bar : bool, optional (default=False)
+            If True, adds a color bar to the plot.
+        color_bar_title : str, optional
+            Title for the color bar, if `color_bar` is True.
+        symbol_size : int, optional (default=10)
+            Size of the symbols used in the scatter plot.
+        plot_width : int, optional (default=950)
+            Width of the plot in pixels.
+        save_to_disk : bool, optional (default=True)
+            If True, saves the plot to a PNG file in the specified `out_dir`.
+
+        Returns:
+        --------
+        None
+            This function does not return anything. It generates and optionally saves the geospatial plot.
+
+        Notes:
+        ------
+        - The function uses the CARTODBPOSITRON map tile as a base map layer.
+        - The plot title, axis labels, and hover tooltips can be customized.
+        - If `color_spec` is a ColorMapper or dictionary with a transform, the plot will use a color scale.
+        - If a color bar is needed, it will be added to the right of the plot.
+        - Uses Bokeh's `export_png` for saving plots to PNG files, and displays the plot in the browser with `show()`.
+
+        Example:
+        --------
+        create_geospatial_plot(
+            source=source,
+            tooltips=[("Cluster ID", "@cluster_id"), ("Vaccination Rate", "@vaccination_rate")],
+            color_spec="navy",
+            out_dir='plots',
+            case='example_case',
+            plot_title='Geospatial Distribution of Vaccination Rates',
+            color_bar=True,
+            color_bar_title='Vaccination Rate',
+            symbol_size=12,
+            plot_width=1000,
+            save_to_disk=True
+        )
+        """
     # Create figure with specified settings
     p = figure(title=plot_title, x_axis_type="mercator", y_axis_type="mercator",
                tools="pan,wheel_zoom,box_zoom,reset",
@@ -521,6 +848,63 @@ def plot_variograms(country_code,
                     variogram_model='Spherical',
                     n_lags=20,
                     max_lag_km=1500):
+    """
+       Plots variograms for geospatial features such as vaccination rates, electricity coverage, wealth index, and more, for a given country.
+       The variograms provide a visual representation of the spatial correlation of each feature over a specified range.
+
+       Parameters:
+       -----------
+       country_code : str
+           The country code representing the Area of Interest (AOI) for which variograms are generated.
+       geospatial_df : pandas.DataFrame
+           A DataFrame containing the geospatial data, including columns for latitude ('lat'), longitude ('lon'),
+           and feature values such as vaccination rates, electricity, etc.
+       aoi_configurations : dict
+           Dictionary containing AOI-specific configurations such as latitude and longitude of the CRS origin.
+           Expected to contain keys as country codes mapping to CRS details ('crs_lat', 'crs_lon').
+       out_dir : str, optional
+           Directory where the output variogram plot images will be saved. Default is None, in which case plots will not be saved.
+       normalize : bool, optional (default=True)
+           If True, normalizes lag distances in the variogram plots. If False, plots lag distance in kilometers.
+       variogram_model : str, optional (default='Spherical')
+           The model type to use for variogram fitting. Common options include 'Spherical', 'Gaussian', 'Exponential', etc.
+       n_lags : int, optional (default=20)
+           Number of lags used for variogram calculation.
+       max_lag_km : float, optional (default=1500)
+           Maximum lag distance in kilometers for the variogram.
+
+       Returns:
+       --------
+       None
+           This function generates variogram plots for different features, optionally saves them as images, and displays them.
+
+       Notes:
+       ------
+       - The function calculates variograms for various geospatial features including:
+         - Vaccination rates ('fraction_dpt3_vaccinated')
+         - Wealth index ('mean_wealth_index')
+         - Electricity coverage ('fraction_with_electricity')
+         - Radio ownership ('fraction_with_radio')
+         - Television ownership ('fraction_with_tv')
+       - Fresh water access is excluded from the variogram calculation as not all AOIs have this data.
+       - Uses a Lambert Azimuthal Equal-Area (LAEA) projection for transforming coordinates.
+       - If any data contains NaN values, they are filtered out prior to variogram calculation.
+       - The variograms are plotted using Matplotlib and saved as PNG images.
+       - The function combines all variogram images into a single stacked image.
+
+       Example:
+       --------
+       plot_variograms(
+           country_code='PK',
+           geospatial_df=df,
+           aoi_configurations={'PK': {'crs_lat': 30.3753, 'crs_lon': 69.3451}},
+           out_dir='output/variograms',
+           normalize=True,
+           variogram_model='Spherical',
+           n_lags=20,
+           max_lag_km=1500
+       )
+       """
     crs_lat = aoi_configurations[country_code]['crs_lat']
     crs_lon = aoi_configurations[country_code]['crs_lon']
 
@@ -574,6 +958,7 @@ def plot_variograms(country_code,
     #                               n_lags=n_lags, normalize=normalize, maxlag=max_lag_km)
     # else:
     #     V_fresh_water = None
+    # Exclude fresh water access for now since some AOIs do not have such data
     V_fresh_water = None
 
     # Wealth index
