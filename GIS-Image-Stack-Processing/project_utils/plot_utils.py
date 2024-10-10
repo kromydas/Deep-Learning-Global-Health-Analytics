@@ -14,7 +14,7 @@ from itertools import combinations
 import pyproj
 from bokeh.plotting import show
 from bokeh.models import ColumnDataSource, HoverTool, LabelSet
-from bokeh.models import ColorBar, ColorMapper
+from bokeh.models import LinearColorMapper, ColorBar, ColorMapper
 from bokeh.io import export_png
 
 from bokeh.plotting import figure
