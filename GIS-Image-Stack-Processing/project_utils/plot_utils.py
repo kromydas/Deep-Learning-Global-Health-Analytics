@@ -14,11 +14,11 @@ from itertools import combinations
 import pyproj
 from bokeh.plotting import show
 from bokeh.models import ColumnDataSource, HoverTool, LabelSet
-from bokeh.models import LinearColorMapper, ColorBar, ColorMapper
+from bokeh.models import ColorBar, ColorMapper
 from bokeh.io import export_png
 
 from bokeh.plotting import figure
-from bokeh.tile_providers import get_provider, CARTODBPOSITRON #ESRI_IMAGERY
+from bokeh.tile_providers import CARTODBPOSITRON
 from skgstat import Variogram
 
 def plot_aoi_distribution(dataset, case, title="AOI Distribution"):
@@ -84,7 +84,6 @@ def plot_aoi_distribution(dataset, case, title="AOI Distribution"):
     plt.savefig(file_path, format='png', dpi=300)
 
     plt.show()
-
 
 def plot_training_curves(metrics,
                          title=None,
@@ -174,14 +173,11 @@ def plot_training_curves(metrics,
     file_suffix = ".png"
     file_path = os.path.join(out_dir, f"{case}{file_suffix}") if out_dir else f"{case}{file_suffix}"
 
-    # Save the plot if save_path is provided
-    if out_dir:
-        plt.savefig(file_path)
-        print(f"Plot saved to {file_path}")
+    plt.savefig(file_path)
+    print(f"Plot saved to {file_path}")
 
     plt.show()
     plt.close()
-
 
 def plot_predictions(predictions,
                      actuals,
@@ -189,10 +185,9 @@ def plot_predictions(predictions,
                      case=None,
                      add_grid=False,
                      selected_targets=None,
-                     plot_hist=False,
                      title_string=None):
     """
-       Plots scatter plots of predictions vs. actuals for multiple targets, with optional error histograms.
+       Plots scatter plots of predictions vs. actuals for multiple targets.
 
        Parameters:
        -----------
@@ -208,8 +203,6 @@ def plot_predictions(predictions,
            If True, adds a grid to each subplot.
        selected_targets : list of str, optional
            Names for each target output to be used in the plot titles. If not provided, default names are used.
-       plot_hist : bool, optional (default=False)
-           If True, plots histograms of prediction errors alongside the scatter plots.
        title_string : str, optional
            Additional string to be appended to each plot title.
 
@@ -221,7 +214,6 @@ def plot_predictions(predictions,
        Notes:
        ------
        - The function plots a scatter plot of actual vs. predicted values for each target.
-       - If `plot_hist` is True, it also plots a histogram of the prediction errors for each target.
        - The output plot is saved as a PNG file in the specified output directory.
        - Ensure that matplotlib and numpy are installed and available in your environment.
 
@@ -236,7 +228,6 @@ def plot_predictions(predictions,
            case='experiment_1',
            add_grid=True,
            selected_targets=['Target 1', 'Target 2', 'Target 3'],
-           plot_hist=True,
            title_string='Experiment Results'
        )
        """
@@ -260,10 +251,7 @@ def plot_predictions(predictions,
 
     for i in range(num_targets):
         # Scatter plot
-        if plot_hist:
-            ax1 = plt.subplot(num_targets, 2, 2 * i + 1)
-        else:
-            ax1 = plt.subplot(num_targets, 1, i + 1)
+        ax1 = plt.subplot(num_targets, 1, i + 1)
 
         ax1.tick_params(axis='both', labelsize=14)
         plt.scatter(actuals[:, i], predictions[:, i], color='blue', alpha=0.4)
@@ -279,18 +267,6 @@ def plot_predictions(predictions,
         plt.xlim(-0.05, 1.05)
         if add_grid:
             plt.grid(True, linestyle='-', color='lightgray', alpha=0.4)
-
-        # Histogram of errors
-        if plot_hist:
-            ax2 = plt.subplot(num_targets, 2, 2 * i + 2)
-            errors = predictions[:, i] - actuals[:, i]
-            plt.hist(errors, bins=30, color='green', alpha=0.5)
-            plt.title(f'{selected_targets[i]} - Error Histogram')
-            plt.xlabel('Prediction Error')
-            plt.ylabel('Frequency')
-            plt.xlim(-1, 1)
-            if add_grid:
-                plt.grid(True, linestyle='-', color='lightgray', alpha=0.4)
 
     plt.tight_layout()
 
