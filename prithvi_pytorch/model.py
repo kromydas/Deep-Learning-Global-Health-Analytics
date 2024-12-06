@@ -68,6 +68,9 @@ class PrithviEncoder(nn.Module):
             encoder.load_state_dict(state_dict, strict=False)
         self.encoder = encoder
 
+    def get_intermediate_layers(self, x, n, mask_ratio=0.0, reshape=True, norm=True):
+        return self.encoder.get_intermediate_layers(x, n=n, mask_ratio=mask_ratio, reshape=reshape, norm=norm)
+
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         # add a temporal dimension if num_frames = 1
         if x.ndim == 4:
