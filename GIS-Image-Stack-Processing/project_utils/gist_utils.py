@@ -369,6 +369,7 @@ def gdal_resample(input_tif, output_tif, resample_alg, x_res, y_res, debug=False
         "-r", resample_alg,
         "-co", "COMPRESS=DEFLATE",
         "-co", "ZLEVEL=9",
+        "-co", "BIGTIFF = YES",
         input_tif,
         output_tif
     ]
@@ -640,30 +641,38 @@ def transform_to_CRS(input_tif, output_tif, proj_string, debug=False):
             print(f"Output file {output_tif} exists and will be overwritten.")
         os.remove(output_tif)
 
-    with rasterio.open(input_tif) as src:
-        transform, width, height = calculate_default_transform(
-            src.crs, proj_string, src.width, src.height, *src.bounds)
-        kwargs = src.meta.copy()
-        kwargs.update({
-            'crs': proj_string,
-            'transform': transform,
-            'width': width,
-            'height': height
-        })
+    try:
+        with rasterio.open(input_tif) as src:
+            transform, width, height = calculate_default_transform(
+                src.crs, proj_string, src.width, src.height, *src.bounds)
+            kwargs = src.meta.copy()
+            kwargs.update({
+                'crs': proj_string,
+                'transform': transform,
+                'width': width,
+                'height': height
+            })
 
-        with rasterio.open(output_tif, 'w', **kwargs) as dst:
-            for i in range(1, src.count + 1):
-                reproject(
-                    source=rasterio.band(src, i),
-                    destination=rasterio.band(dst, i),
-                    src_transform=src.transform,
-                    src_crs=src.crs,
-                    dst_transform=transform,
-                    dst_crs=proj_string,
-                    resampling=Resampling.nearest)
+            with rasterio.open(output_tif, 'w', **kwargs) as dst:
+                for i in range(1, src.count + 1):
+                    reproject(
+                        source=rasterio.band(src, i),
+                        destination=rasterio.band(dst, i),
+                        src_transform=src.transform,
+                        src_crs=src.crs,
+                        dst_transform=transform,
+                        dst_crs=proj_string,
+                        resampling=Resampling.bilinear,
+                        src_nodata=src.nodata,
+                        dst_nodata=src.nodata
+                    )
 
-    if debug:
-        print("Transformation complete.")
+        if debug:
+            print("Transformation complete.")
+
+    except Exception as e:
+        print(f"Error during transformation of {input_tif}: {e}")
+
 
 def transform_folder_to_CRS(input_folder, output_folder, proj_string, debug=False):
     """

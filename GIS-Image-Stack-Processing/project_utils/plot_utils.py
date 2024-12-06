@@ -394,12 +394,13 @@ def plot_clusters(projected_features,
                    height=800)
         p.title.text_font_size = '14pt'
 
-        hover = HoverTool(tooltips=[("Vaccination Rate", "@vaccination_rate")])
+        hover = HoverTool(tooltips=[("Vaccination Rate", "@vaccination_rate"),
+                                    ("Cluster ID", "@cluster_id")])
 
         p.add_tools(hover)
 
         # Plot using the color column from the source
-        p.scatter('x', 'y', source=source, color='color', size=9, alpha=0.4)
+        p.scatter('x', 'y', source=source, color='color', size=9, alpha=0.5)
 
         if annotate_points:
             labels = LabelSet(x='x', y='y', text='cluster_id', level='glyph', x_offset=5, y_offset=5, source=source,
@@ -431,25 +432,25 @@ def plot_clusters(projected_features,
     return None
 
 
-def plot_comparison(country_code,
-                    cluster_stats,
-                    non_cluster_stats,
-                    cluster_label,
-                    cluster_count,
-                    non_cluster_count,
-                    unnormalized_cluster_means,
-                    unnormalized_non_cluster_means,
-                    survey_means_cluster,
-                    correlations,
-                    cluster_vaccination_rates,
-                    non_cluster_vaccination_rates,
-                    cluster_color,
-                    stats_normalized=True,
-                    out_dir=None,
-                    case=None,
-                    plot_title=None,
-                    save_to_disk=True,
-                    plot_values=False):
+def plot_cluster_hist_comparison(country_code,
+                                 cluster_stats,
+                                 non_cluster_stats,
+                                 cluster_label,
+                                 cluster_count,
+                                 non_cluster_count,
+                                 unnormalized_cluster_means,
+                                 unnormalized_non_cluster_means,
+                                 survey_means_cluster,
+                                 correlations,
+                                 cluster_vaccination_rates,
+                                 non_cluster_vaccination_rates,
+                                 cluster_color,
+                                 stats_normalized=True,
+                                 out_dir=None,
+                                 case=None,
+                                 plot_title=None,
+                                 save_to_disk=True,
+                                 plot_values=False):
     """
         Plots a bar chart comparing the normalized statistics for a specific cluster against non-cluster statistics,
         along with the distribution of vaccination rates for both the cluster and non-cluster groups.
@@ -605,7 +606,7 @@ def plot_comparison(country_code,
 
     axs[1].set_xlabel('Vaccination Rate')
     axs[1].set_ylabel(y_label)
-    axs[1].set_title(f'{country_code}: Vaccination Distribution')
+    #axs[1].set_title(f'{country_code}: Vaccination Distribution')
     if non_cluster_count > 0:
         axs[1].legend()
 
@@ -621,6 +622,136 @@ def plot_comparison(country_code,
     plt.tight_layout()
     plt.show()
 
+def plot_cluster_violin_comparison(country_code,
+                                   cluster_vaccination_rates,
+                                   non_cluster_vaccination_rates,
+                                   cluster_labels,
+                                   cluster_sizes,
+                                   cluster_colors,
+                                   n_clusters=None,
+                                   feature_string=None,
+                                   model_string=None,
+                                   plot_title=None,
+                                   out_dir=None,
+                                   case=None,
+                                   save_to_disk=True):
+    """
+    Plots a single violin plot comparing vaccination rate distributions for all clusters in one figure.
+    Ensures individual violin plots maintain the same width as if there were 9 clusters, aligned to the left.
+    """
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+    import pandas as pd
+    import numpy as np
+    import os
+
+    # Generate default case and plot_title if not provided
+    if case is None and n_clusters is not None and feature_string is not None:
+        case = f"{country_code}_{n_clusters}Cluster_Compare_{feature_string}"
+
+    if plot_title is None and model_string is not None and feature_string is not None:
+        plot_title = f"{country_code}: Cluster Comparison ({model_string}), Features: {feature_string}"
+
+    # Prepare data for seaborn violin plot
+    data = []
+    labels = []
+    colors = []
+    means = []
+
+    # Add each cluster's vaccination rates to the dataset
+    for i, rates in enumerate(cluster_vaccination_rates):
+        if isinstance(rates, float):
+            rates = [rates]
+        data.extend(rates)
+        labels.extend([f"Cluster {cluster_labels[i]} (n={cluster_sizes[i]})"] * len(rates))
+        colors.extend([cluster_colors[i]] * len(rates))
+        means.append(sum(rates) / len(rates) if len(rates) > 0 else 0)
+
+    # Add non-cluster vaccination rates to the dataset
+    if non_cluster_vaccination_rates:
+        if isinstance(non_cluster_vaccination_rates, float):
+            non_cluster_vaccination_rates = [non_cluster_vaccination_rates]
+        data.extend(non_cluster_vaccination_rates)
+        labels.extend([f"Non-Cluster (n={len(non_cluster_vaccination_rates)})"] * len(non_cluster_vaccination_rates))
+        colors.extend(["gray"] * len(non_cluster_vaccination_rates))
+        means.append(sum(non_cluster_vaccination_rates) / len(non_cluster_vaccination_rates) if len(
+            non_cluster_vaccination_rates) > 0 else 0)
+
+    # Create a DataFrame for plotting
+    df = pd.DataFrame({"Vaccination Rate": data, "Group": labels, "Color": colors})
+
+    # Prepare fixed positions for up to 9 total violins
+    max_clusters = 9
+    num_groups = len(cluster_labels) + (1 if non_cluster_vaccination_rates else 0)
+    fixed_positions = np.linspace(0, max_clusters - 1, max_clusters)  # Fixed slots for 9 positions
+    positions = fixed_positions[:num_groups]  # Use only the needed positions for the current groups
+
+    # Set up the plot
+    fig, ax = plt.subplots(figsize=(14, 5))
+
+    # Generate group labels and colors
+    order = [f"Cluster {cluster_labels[i]} (n={cluster_sizes[i]})" for i in range(len(cluster_labels))]
+    if non_cluster_vaccination_rates:
+        order.append(f"Non-Cluster (n={len(non_cluster_vaccination_rates)})")
+
+    all_colors = cluster_colors + ["gray"]  # Combine cluster colors with gray for Non-Cluster
+
+    # Create a custom palette mapping each label to its color
+    palette = {label: color for label, color in zip(order, all_colors)}
+
+    # Create the violin plot with custom positions
+    sns.violinplot(data=df,
+                   x="Group",
+                   y="Vaccination Rate",
+                   hue="Group",
+                   order=order,
+                   palette=palette,
+                   inner="points",
+                   linewidth=1,
+                   alpha=0.7,
+                   density_norm="width",
+                   width=0.8,
+                   ax=ax)
+
+    # Adjust x-axis limits to ensure violins are positioned as if there were always 9
+    ax.set_xlim(-0.5, max_clusters - 0.5)
+
+    # Adjust y-axis limits to provide ample space for tails
+    ax.set_ylim(-0.3, 1.3)  # Increased space for tails without clipping
+
+    # Get the max y-axis limit
+    max_y_limit = ax.get_ylim()[1]
+
+    # Add mean vaccination rates as text above each violin plot at 0.92 * max_y_limit
+    for i, mean in enumerate(means):
+        ax.text(positions[i], 0.92 * max_y_limit, f"{mean:.2f}", ha="center", va="bottom", fontsize=14, color="black")
+
+    # Dynamically place sample count labels directly below each violin plot
+    x_labels = [f"n={cluster_sizes[i]}" for i in range(len(cluster_sizes))]
+    if non_cluster_vaccination_rates:
+        x_labels.append(f"n={len(non_cluster_vaccination_rates)}")
+    ax.set_xticks(positions)
+    ax.set_xticklabels(x_labels, fontsize=14)
+
+    # Set other plot labels
+    plt.yticks(fontsize=14)
+    ax.set_xlabel("")
+    ax.set_ylabel("Vaccination Rate", fontsize=14)
+    ax.set_title(plot_title or f"{country_code}: Vaccination Rate Distributions by Cluster", fontsize=12, pad=10)
+
+    # Save the plot if required
+    if save_to_disk:
+        if out_dir is None:
+            out_dir = "plots"  # Default directory if out_dir is not provided
+        if not os.path.exists(out_dir):
+            os.makedirs(out_dir)
+        file_suffix = ".png"
+        file_path = os.path.join(out_dir, f"{case}{file_suffix}") if out_dir else f"{case}{file_suffix}"
+        plt.tight_layout()
+        plt.savefig(file_path, format="png")
+
+    # Show the plot
+    plt.show()
 
 
 def wgs84_to_mercator(lon, lat):
@@ -666,6 +797,7 @@ def create_geospatial_plot(source,
                            plot_title=None,
                            color_bar=False,
                            color_bar_title=None,
+                           alpha=.5,
                            symbol_size=10,
                            plot_width=950,
                            save_to_disk=True):
@@ -694,6 +826,8 @@ def create_geospatial_plot(source,
             If True, adds a color bar to the plot.
         color_bar_title : str, optional
             Title for the color bar, if `color_bar` is True.
+        alpha : float, optional (default=0.5)
+            Symbol transparency fill value.
         symbol_size : int, optional (default=10)
             Size of the symbols used in the scatter plot.
         plot_width : int, optional (default=950)
@@ -753,22 +887,22 @@ def create_geospatial_plot(source,
     if isinstance(color_spec, dict) and 'transform' in color_spec and isinstance(color_spec['transform'], ColorMapper):
         color_mapper = color_spec['transform']
         field = color_spec['field']
-        p.scatter('mercator_x', 'mercator_y', source=source, fill_alpha=0.4, size=symbol_size,
+        p.scatter('mercator_x', 'mercator_y', source=source, fill_alpha=alpha, size=symbol_size,
                   color={'field': field, 'transform': color_mapper})
 
     elif hasattr(color_spec, 'transform') and isinstance(color_spec.transform, ColorMapper):
         color_mapper = color_spec.transform
         field = color_spec.field
-        p.scatter('mercator_x', 'mercator_y', source=source, fill_alpha=0.4, size=symbol_size,
+        p.scatter('mercator_x', 'mercator_y', source=source, fill_alpha=alpha, size=symbol_size,
                   color={'field': field, 'transform': color_mapper})
 
     elif isinstance(color_spec, ColorMapper):
         color_mapper = color_spec
-        p.scatter('mercator_x', 'mercator_y', source=source, fill_alpha=0.4, size=symbol_size,
+        p.scatter('mercator_x', 'mercator_y', source=source, fill_alpha=alpha, size=symbol_size,
                   color={'field': 'pc_value', 'transform': color_spec})  # Ensure 'pc_value' is valid
 
     else:
-        p.scatter('mercator_x', 'mercator_y', source=source, fill_alpha=0.4, size=symbol_size, color="navy")
+        p.scatter('mercator_x', 'mercator_y', source=source, fill_alpha=alpha, size=symbol_size, color="navy")
         print("Added circles with simple or undefined color specification.")
 
     # Add hover tool
