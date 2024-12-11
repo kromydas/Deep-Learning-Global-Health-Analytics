@@ -1,3 +1,5 @@
+import json
+import pandas as pd
 #--------------------------------------------------------------------------------------------------
 # The aoi_configurations dictionary stores AOI-level (Area of Interest) data for each country,
 # using the DHS two-letter country code as the dictionary key. Each entry contains the following
@@ -167,3 +169,59 @@ aoi_configurations = {
         # 'recode_br': 'DHS/SN_2023_CONTINUOUSDHS/SNBR8RSV/SNBR8RFL.SAV'
     }
 }
+
+
+def process_aoi_target_json(aoi_target_json_path, country_code):
+    """
+    Processes an AOI target JSON file into DataFrames for DHS and geospatial analysis.
+
+    Args:
+        aoi_target_json_path (str): Path to the JSON file containing AOI target data.
+        country_code (str): Country code to be added to the DataFrame.
+
+    Returns:
+        tuple: A tuple containing:
+            - dhs_df (pd.DataFrame): DataFrame with 'cluster_id' and target data.
+            - geospatial_df (pd.DataFrame): DataFrame indexed by 'cluster_id' for geospatial matching.
+    """
+    # Load the JSON file into a Python dictionary
+    with open(aoi_target_json_path, 'r') as f:
+        data_dict = json.load(f)
+
+    # Remove the 'metadata' entry if present
+    if 'metadata' in data_dict:
+        data_dict.pop('metadata')
+
+    # Remove any non-cluster keys (such as 'clusters', if needed)
+    if 'clusters' in data_dict:
+        data_dict = data_dict['clusters']  # Access the actual cluster data under the 'clusters' key
+
+    # Convert the remaining dictionary to a DataFrame
+    dhs_df = pd.DataFrame.from_dict(data_dict, orient='index')
+
+    # Ensure that the 'cluster_id' column is an integer
+    dhs_df.index = dhs_df.index.astype(int)
+
+    # Reset the index to make 'cluster_id' a column and rename 'index' column
+    dhs_df = dhs_df.reset_index().rename(columns={'index': 'cluster_id'})
+
+    # Sort the DataFrame by 'cluster_id' to ensure correct numerical ordering
+    dhs_df = dhs_df.sort_values(by='cluster_id')
+
+    # Add the 'country_code' column
+    dhs_df['country_code'] = country_code
+
+    # Copy dhs_df to geospatial_df
+    geospatial_df = dhs_df.copy()
+
+    # Ensure 'cluster_id' is the index for proper matching in geospatial_df
+    geospatial_df.set_index('cluster_id', inplace=True)
+
+    # Display debug information
+    print(dhs_df.head())
+    print('Number of records in dhs_df: ', len(dhs_df))
+    print("\n")
+    print(geospatial_df.head())
+    print('Number of records in geospatial_df: ', len(geospatial_df))
+
+    return dhs_df, geospatial_df
