@@ -1171,3 +1171,127 @@ def plot_variograms(country_code,
     # Close the memory buffers
     for buf in buffers:
         buf.close()
+
+def display_rgb_images(data_loader, cluster_id_list=None, cols=4, max_rows=10):
+    """
+    Display RGB images in a grid format. Optionally filter by cluster IDs.
+
+    Args:
+        data_loader: PyTorch DataLoader object.
+        cluster_id_list: Optional list of cluster IDs to filter. If None, display all images.
+        cols: Number of columns in the grid.
+        max_rows: Maximum number of rows to display in the grid.
+    """
+    # Initialize a list to store filtered images and metadata
+    filtered_images = []
+    filtered_titles = []
+
+    # Filter images by cluster IDs
+    for images, cluster_info in data_loader:
+        batch_size = images.shape[0]
+
+        for i in range(batch_size):
+            cluster_id = cluster_info[0][i].item()
+
+            # Add only images that match the cluster ID filter
+            if cluster_id_list and cluster_id not in cluster_id_list:
+                continue
+
+            rgb_image = images[i][:3].permute(1, 2, 0).numpy()
+            rgb_image = (rgb_image - rgb_image.min()) / (rgb_image.max() - rgb_image.min())
+            vaccination_rate = cluster_info[2][i][0].item()
+
+            filtered_images.append(rgb_image)
+            filtered_titles.append(f"Cluster ID: {cluster_id}\nVaccination Rate: {vaccination_rate:.2f}")
+
+            # Stop once we've collected enough images for the grid
+            if len(filtered_images) >= max_rows * cols:
+                break
+
+        if len(filtered_images) >= max_rows * cols:
+            break
+
+    # Adjust the number of rows dynamically, but cap it at max_rows
+    num_images = len(filtered_images)
+    rows = min((num_images + cols - 1) // cols, max_rows)
+
+    # Dynamically adjust figsize based on rows and cols
+    fig, axes = plt.subplots(rows, cols, figsize=(cols * 3, rows * 3))
+    axes = axes.flatten()
+
+    for idx, (image, title) in enumerate(zip(filtered_images, filtered_titles)):
+        axes[idx].imshow(image)
+        axes[idx].axis('off')
+        axes[idx].set_title(title, fontsize=10)
+
+    # Turn off any unused axes
+    for i in range(len(filtered_images), len(axes)):
+        axes[i].axis('off')
+
+    # Use constrained_layout for better spacing control
+    fig.set_constrained_layout(True)
+    plt.show()
+
+def display_ir_band(data_loader, band_index, cluster_id_list=None, cols=4, max_rows=10):
+    """
+    Display a single IR band in grayscale. Optionally filter by cluster IDs.
+
+    Args:
+        data_loader: PyTorch DataLoader object.
+        band_index: Index of the IR band to display (0-based index relative to all 6 bands, e.g., 3, 4, or 5).
+        cluster_id_list: Optional list of cluster IDs to filter. If None, display all images.
+        cols: Number of columns in the grid.
+        max_rows: Maximum number of rows to display in the grid.
+    """
+    if band_index < 3 or band_index > 5:
+        raise ValueError("Invalid band_index. Must be 3, 4, or 5 for IR bands.")
+
+    # Initialize a list to store filtered images and metadata
+    filtered_images = []
+    filtered_titles = []
+
+    # Filter images by cluster IDs
+    for images, cluster_info in data_loader:
+        batch_size = images.shape[0]
+
+        for i in range(batch_size):
+            cluster_id = cluster_info[0][i].item()
+
+            # Add only images that match the cluster ID filter
+            if cluster_id_list and cluster_id not in cluster_id_list:
+                continue
+
+            ir_band = images[i][band_index, :, :].numpy()
+            ir_band_normalized = (ir_band - ir_band.min()) / (ir_band.max() - ir_band.min())
+            vaccination_rate = cluster_info[2][i][0].item()
+
+            filtered_images.append(ir_band_normalized)
+            filtered_titles.append(f"Cluster ID: {cluster_id}\nVaccination Rate: {vaccination_rate:.2f}")
+
+            # Stop once we've collected enough images for the grid
+            if len(filtered_images) >= max_rows * cols:
+                break
+
+        if len(filtered_images) >= max_rows * cols:
+            break
+
+    # Adjust the number of rows dynamically, but cap it at max_rows
+    num_images = len(filtered_images)
+    rows = min((num_images + cols - 1) // cols, max_rows)
+
+    # Dynamically adjust figsize based on rows and cols
+    fig, axes = plt.subplots(rows, cols, figsize=(cols * 3, rows * 3))
+    axes = axes.flatten()
+
+    for idx, (image, title) in enumerate(zip(filtered_images, filtered_titles)):
+        axes[idx].imshow(image, cmap="gray")
+        axes[idx].axis('off')
+        axes[idx].set_title(title, fontsize=10)
+
+    # Turn off any unused axes
+    for i in range(len(filtered_images), len(axes)):
+        axes[i].axis('off')
+
+    # Use constrained_layout for better spacing control
+    fig.set_constrained_layout(True)
+    plt.show()
