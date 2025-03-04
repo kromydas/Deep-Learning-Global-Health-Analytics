@@ -15,6 +15,7 @@ from rasterio.windows import Window
 from rasterio.warp import transform_bounds
 from rasterio.warp import calculate_default_transform, reproject
 from rasterio.enums import Resampling
+from rasterio.merge import merge
 from shapely.geometry import Point, Polygon
 
 import matplotlib.pyplot as plt
@@ -1371,6 +1372,81 @@ def load_and_plot_geotiffs(file_path, plot_data=True, cmap='gray', precision=np.
 
     return stats_df
 
+
+def stitch_geotiffs(input_folder, output_file, nodata_value=None):
+    """
+    Merges multiple GeoTIFF files from a specified folder into a single stitched GeoTIFF.
+
+    This function scans a folder for .tif files and merges them into a single output GeoTIFF,
+    preserving metadata from the first file while updating dimensions and transformation parameters.
+    It does not check for NoData values, meaning all files in the folder will be included in the merge.
+
+    Parameters:
+    -----------
+    input_folder : str
+        Path to the folder containing input GeoTIFF (.tif) files to be merged.
+
+    output_file : str
+        Path where the merged GeoTIFF will be saved.
+
+    nodata_value : float, optional
+        Specifies a custom NoData value for the output file. If None, it retains the NoData
+        value from the first input file.
+
+    Notes:
+    ------
+    - Uses `rasterio.merge.merge()` to handle overlapping datasets automatically.
+    - Processes all `.tif` files in the specified folder **without filtering for NoData values**.
+    - Closes all opened datasets after merging.
+    - Prints a message if no `.tif` files are found.
+
+    Returns:
+    --------
+    None
+        The function saves the merged GeoTIFF to `output_file` and prints the output location.
+    """
+
+    # List to hold file paths instead of open datasets
+    src_file_paths_to_mosaic = []
+
+    # Iterate over all .tif files in the input folder
+    for file in os.listdir(input_folder):
+        if file.endswith(".tif"):
+            file_path = os.path.join(input_folder, file)
+            src_file_paths_to_mosaic.append(file_path)
+
+    if not src_file_paths_to_mosaic:
+        print("No valid GeoTIFFs found for stitching.")
+        return
+
+    # Open datasets for merging
+    src_files_to_mosaic = [rasterio.open(fp) for fp in src_file_paths_to_mosaic]
+
+    # Merge the datasets, handling overlaps automatically
+    mosaic, out_trans = merge(src_files_to_mosaic)
+
+    # Copy the metadata from the first file
+    out_meta = src_files_to_mosaic[0].meta.copy()
+
+    # Update the metadata with the new dimensions, transform, etc.
+    out_meta.update({
+        "driver": "GTiff",
+        "height": mosaic.shape[1],
+        "width": mosaic.shape[2],
+        "transform": out_trans,
+        "count": mosaic.shape[0],  # Number of bands
+        "nodata": nodata_value or out_meta.get('nodata', None)
+    })
+
+    # Write the mosaic to a new file
+    with rasterio.open(output_file, "w", **out_meta) as dest:
+        dest.write(mosaic)
+
+    # Close all opened datasets
+    for src in src_files_to_mosaic:
+        src.close()
+
+    print(f"Merged GeoTIFF saved at {output_file}")
 
 
 
